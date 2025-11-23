@@ -1,0 +1,2 @@
+https://docs.authlib.org/en/latest/client/flask.html
+https://www.youtube.com/watch?v=BgYo-wpqi3s
