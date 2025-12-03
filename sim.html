@@ -1,0 +1,348 @@
+<html>
+<head>
+    <style>
+        body { margin: 0; overflow: hidden; background: #1a1a1a; }
+        canvas { touch-action: none; width: 100%; height: 100%; }
+    </style>
+</head>
+<body>
+    <canvas id="canvas"></canvas>
+    <script src="https://unpkg.com/filament@1.9.0/filament.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gl-matrix/3.4.3/gl-matrix-min.js"></script>
+    <script>
+        let ibl_url = 'https://raw.githubusercontent.com/BlakeLeviSmith/Poker-3D-assets/main/myenv_ibl.ktx';
+        let sky_url = 'https://raw.githubusercontent.com/BlakeLeviSmith/Poker-3D-assets/main/myenv_skybox.ktx';
+
+        Filament.init([ibl_url, sky_url], () => {
+            window.VertexAttribute = Filament.VertexAttribute
+            window.AttributeType = Filament.VertexBuffer$AttributeType;
+            window.PrimitiveType = Filament.RenderableManager$PrimitiveType
+            window.IndexType = Filament.IndexBuffer$IndexType
+            window.Fov = Filament.Camera$Fov
+            window.LightType = Filament.LightManager$Type
+
+            let canvas = document.getElementById('canvas')
+            let dpr = 2.5
+            canvas.width = window.innerWidth * dpr
+            canvas.height = window.innerHeight * dpr
+            
+            window.app = new App(canvas)
+        })
+
+        class App {
+            constructor(canvas) {
+                this.canvas = canvas
+                let engine = this.engine = Filament.Engine.create(canvas)
+                let scene = this.scene = engine.createScene()
+                this.sceneLoaded = false
+                this.count = 0
+                this.cardDealComplete = false
+                this.fb = -1.85//target -1.5 so change +0.35
+                this.lr = -0.266//target -0.266 so change 0
+                this.upDown = 0.167//target 0.12 so change -0.055
+
+
+
+                // IBL and Skybox
+                let indirectLight = engine.createIblFromKtx(ibl_url)
+                indirectLight.setIntensity(80000)
+                scene.setIndirectLight(indirectLight)
+
+                let skybox = engine.createSkyFromKtx(sky_url)
+                scene.setSkybox(skybox)
+
+                // Renderer setup
+                this.swapChain = engine.createSwapChain()
+                this.renderer = engine.createRenderer()
+                this.camera = engine.createCamera(Filament.EntityManager.get().create())
+                this.view = engine.createView()
+                this.view.setCamera(this.camera)
+                this.view.setScene(scene)
+                this.view.setViewport([0, 0, canvas.width, canvas.height])
+                this.view.setAntiAliasing(Filament.View$AntiAliasing.FXAA)
+                this.view.setSampleCount(8)
+                this.view.setPostProcessingEnabled(false)
+                this.view.set
+
+                this.camera.setProjectionFov(45, canvas.width / canvas.height, 0.1, 100.0, Fov.VERTICAL)
+
+                this.loadAssets()
+                this.setupCameraControls()
+
+                this.render = this.render.bind(this)
+                this.resize = this.resize.bind(this)
+                window.addEventListener('resize', this.resize)
+                window.requestAnimationFrame(this.render)
+                this.cardDealComplete = false
+
+            }
+
+            async loadAssets() {
+                // Load scene
+                let sceneResponse = await fetch("https://raw.githubusercontent.com/BlakeLeviSmith/Poker-3D-assets/main/Scene.glb")
+                let sceneData = await sceneResponse.arrayBuffer() //.glb is bianairy 3d model files so we need direct access to the bytes
+                let loader1 = this.engine.createAssetLoader()
+                let sceneAsset = loader1.createAssetFromBinary(new Uint8Array(sceneData))
+                sceneAsset.loadResources()
+                await new Promise(resolve => setTimeout(resolve, 500))
+                
+                let sceneEntities = sceneAsset.getEntities()
+                for (let i = 0; i < sceneEntities.length; i+=1) {
+                    this.scene.addEntity(sceneEntities[i])
+                }
+
+                //load deck
+                let deckResponse = await fetch('https://raw.githubusercontent.com/BlakeLeviSmith/Poker-3D-assets/main/Deck.glb')
+                let deckData = await deckResponse.arrayBuffer()
+                let loader2 = this.engine.createAssetLoader()
+                let deckAsset = loader2.createAssetFromBinary(new Uint8Array(deckData))
+                deckAsset.loadResources()
+                await new Promise(resolve => setTimeout(resolve, 500))
+
+
+                this.deckEntities = deckAsset.getEntities()
+                for (let i = 0; i< this.deckEntities.length; i+=1){
+                    this.scene.addEntity(this.deckEntities[i])
+                }
+                
+                // Load cards
+                let cardsResponse = await fetch("https://raw.githubusercontent.com/BlakeLeviSmith/Poker-3D-assets/main/CardDeck.glb")
+                let cardsData = await cardsResponse.arrayBuffer()
+                let loader3 = this.engine.createAssetLoader()
+                let cardsAsset = loader3.createAssetFromBinary(new Uint8Array(cardsData))
+                cardsAsset.loadResources()
+                await new Promise(resolve => setTimeout(resolve, 500))
+                
+                this.cardEntities = cardsAsset.getEntities()
+                
+                // Store visibility state for each card
+                this.cardVisibility = new Array(this.cardEntities.length).fill(true)
+                
+                for (let i = 0; i < this.cardEntities.length; i+=1) {
+                    this.scene.addEntity(this.cardEntities[i])
+                }
+                
+                this.cardMappings = { 
+                    'AD': '0', '2D': '1', '3D' : '2', '4D': '3', '5D': '4', '6D': '5', '7D': '6', '8D': '7', '9D': '8', '10D': '9', 'JD': '10', 'QD': '11', 'KD': '12',
+                    'AS': '13', '2S': '14', '3S' : '15', '4S': '16', '5S': '17', '6S': '18', '7S': '19', '8S': '20', '9S': '21', '10S': '22', 'JS': '23', 'QS': '24', 'KS': '25',
+                    'AH': '26', '2H': '27', '3H' : '28', '4H': '29', '5H': '30', '6H': '31', '7H': '32', '8H': '33', '9H': '34', '10H': '35', 'JH': '36', 'QH': '37', 'KH': '38',
+                    'AC': '39', '2C': '40', '3C' : '41', '4C': '42', '5C': '43', '6C': '44', '7C': '45', '8C': '46', '9C': '47', '10C': '48', 'JC': '49', 'QC': '50', 'KC': '51'
+                }
+
+                let unhiddenCard = this.cardMappings['KS']
+                this.hideCard(200)
+                this.showCard(unhiddenCard)
+                
+                
+                // Move all cards and deck -1 unit on X axis (to the left)
+                this.tm = this.engine.getTransformManager()
+                let entity2 = this.deckEntities[0]
+                let inst2 = this.tm.getInstance(entity2)
+                let translationcard = new Float32Array([
+                    1, 0, 0, 0,
+                    0, 1, 0, 0,
+                    0, 0, 1, 0,
+                    -1.85, 0.167, -0.266, 1
+                ])
+
+                let translationdeck = new Float32Array([
+                    1, 0, 0, 0,
+                    0, 1, 0, 0,
+                    0, 0, 1, 0,
+                    -1.85, 0.0, -0.15, 1
+                ])
+
+
+                //Card Transform
+                for (let i = 0; i < this.cardEntities.length; i+=1) {
+                    let entity = this.cardEntities[i]
+                    let inst = this.tm.getInstance(entity)
+
+                    // Get current transform
+                    let currentTransform = this.tm.getTransform(inst)
+                    
+                    this.newTransform = new Float32Array(16)
+                    for (let row = 0; row < 4; row+=1) {
+                        for (let col = 0; col < 4; col+=1) {
+                            let sum = 0
+                            for (let k = 0; k < 4; k+=1) {
+                                sum += translationcard[k * 4 + row] * currentTransform[col * 4 + k]
+                            }
+                            this.newTransform[col * 4 + row] = sum
+                        }
+                    }
+                    this.tm.setTransform(inst, this.newTransform)
+                }
+
+                //Deck Transform
+                let deckTransform = this.tm.getTransform(inst2)
+                let deckNew = new Float32Array(16)
+                for (let row = 0; row < 4; row+=1) {
+                    for (let col = 0; col < 4; col+=1) {
+                        let sum = 0;
+                        for (let k = 0; k < 4; k+=1) {
+                            sum += translationdeck[k * 4 + row] * deckTransform[col * 4 + k]
+                        }
+                        deckNew[col * 4 + row] = sum
+                    }
+                }
+                this.tm.setTransform(inst2, deckNew)
+
+                this.sceneLoaded = true
+            }
+
+            
+            // Helper methods for card visibility
+            hideCard(index) {
+                if (index > 100){
+                    for (let i = 0; i< this.cardEntities.length; i+=1){
+                        this.scene.remove(this.cardEntities[i])
+                        this.cardVisibility[i] = false
+                    }
+                    return
+                }
+                if (this.cardVisibility[index]) {
+                    this.scene.remove(this.cardEntities[index])
+                    this.cardVisibility[index] = false
+                }
+            }
+
+            showCard(index) {
+                if (!this.cardVisibility[index]) {
+                    this.scene.addEntity(this.cardEntities[index])
+                    this.cardVisibility[index] = true
+                }
+            }
+
+
+
+
+            setupCameraControls() {
+                this.isDragging = false
+                this.lastX = 0
+                this.lastY = 0
+                this.up = [0, 1, 0]
+                this.center = [-1, 0.55, 0]
+                this.eye = [-0.5, 0.65, -0.1]
+
+                this.camera.lookAt(this.eye, this.center, this.up)
+
+                document.addEventListener("mousedown", e => {
+                    this.isDragging = true
+                    this.lastX = e.clientX
+                    this.lastY = e.clientY
+                })
+
+                document.addEventListener("mousemove", e => {
+                    if (!this.isDragging) return
+
+                    let deltaX = e.clientX - this.lastX
+                    let deltaY = e.clientY - this.lastY
+                    let sensitivity = 0.005
+
+                    // Compute forward and right vectors
+                    let forward = [
+                        this.center[0] - this.eye[0],
+                        this.center[1] - this.eye[1],
+                        this.center[2] - this.eye[2]
+                    ]
+                    let forwardLength = Math.hypot(...forward)
+                    let forwardNorm = forward.map(v => v / forwardLength)
+
+                    let right = [
+                        forwardNorm[2] * this.up[1] - forwardNorm[1] * this.up[2],
+                        forwardNorm[0] * this.up[2] - forwardNorm[2] * this.up[0],
+                        forwardNorm[1] * this.up[0] - forwardNorm[0] * this.up[1]
+                    ]
+
+                    // Horizontal rotation (around world up)
+                    this.eye[0] += -deltaX * sensitivity * right[0]
+                    this.eye[1] += -deltaX * sensitivity * right[1]
+                    this.eye[2] += -deltaX * sensitivity * right[2]
+
+                    // Vertical rotation (move up/down in world space)
+                    this.eye[0] += deltaY * sensitivity * this.up[0]
+                    this.eye[1] += deltaY * sensitivity * this.up[1]
+                    this.eye[2] += deltaY * sensitivity * this.up[2]
+
+                    this.camera.lookAt(this.eye, this.center, this.up)
+
+                    this.lastX = e.clientX
+                    this.lastY = e.clientY
+                })
+
+                document.addEventListener("mouseup", () => {
+                    this.isDragging = false
+                })
+            }
+
+            render() {
+                this.animationManager()
+                this.engine.execute()
+                this.renderer.render(this.swapChain, this.view)
+                window.requestAnimationFrame(this.render)
+            }
+
+            resize() {
+                let dpr = 3.0
+                let width = this.canvas.width = window.innerWidth * dpr
+                let height = this.canvas.height = window.innerHeight * dpr
+                this.view.setViewport([0, 0, width, height])
+                this.camera.setProjectionFov(75, width / height, 0.1, 100.0, Fov.VERTICAL)
+            }
+
+            cardFlipHelper(entity, transl){
+                let instance = this.tm.getInstance(entity)
+                let translation = transl
+
+                    let Transformation = this.tm.getTransform(instance)
+                    this.newTransformation = new Float32Array(16)
+                    for (let row = 0; row < 4; row+=1) {
+                        for (let col = 0; col < 4; col+=1) {
+                            let sum = 0
+                            for (let k = 0; k < 4; k+=1) {
+                                sum += translation[k * 4 + row] * Transformation[col * 4 + k]
+                            }
+                            this.newTransformation[col * 4 + row] = sum
+                        }
+                    }
+                this.tm.setTransform(instance, this.newTransformation)
+            }
+
+            cardDeal(){
+                let MoveToSpot = new Float32Array([
+                    1, 0, 0, 0,
+                    0, 1, 0, 0,
+                    0, 0, 1, 0,
+                    this.fb, this.upDown, this.lr, 1
+                ])
+
+                this.count+=1
+                if (this.count >= 100){
+                    this.cardDealComplete = true
+                    this.count = 0
+                    this.fb = -1.85//target -1.5 so change +0.35
+                    this.lr = -0.266//target -0.266 so change 0
+                    this.upDown = 0.167//target 0.12 so change -0.055
+                }else{
+                    this.fb+= 0.35/100
+                    this.lr += 0
+                    this.upDown += -0.047/100
+                }
+                return MoveToSpot
+            }
+
+            animationManager(){
+                if (!this.sceneLoaded){return}
+                if (this.cardDealComplete){return}
+                this.targetCard = this.cardEntities[this.cardMappings['KS']]
+                this.showCard(this.cardMappings['KS'])
+                let moveTo = this.cardDeal()
+                this.cardFlipHelper(this.targetCard, moveTo)
+
+
+            }
+        }
+    </script>
+</body>
+</html>
