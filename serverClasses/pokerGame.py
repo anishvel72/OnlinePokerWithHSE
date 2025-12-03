@@ -12,8 +12,9 @@ class PokerGame:
         self._deck.shuffle()
     
     def initialDeal(self):
-        for player in self._players:
-            player.addToHand(self._deck)
+        for i in range(2):
+            for player in self._players:
+                player.addToHand(self._deck)
     
 
     def endRound(self):
