@@ -3,7 +3,7 @@ from authlib.integrations.flask_client import OAuth
 
 import config
 
-
+import time
 
 app = Flask(__name__)
 app.secret_key = 'temporary'
@@ -11,6 +11,8 @@ oauth = OAuth(app)
 
 sessions = {}
 games = {}
+
+
 
 CONF_URL = 'https://accounts.google.com/.well-known/openid-configuration'
 google = oauth.register(
@@ -20,6 +22,11 @@ google = oauth.register(
     server_metadata_url='https://accounts.google.com/.well-known/openid-configuration',
     client_kwargs={'scope': 'openid profile email'}
 )
+
+def checkCookie():
+    
+    
+    return
 
 #I want login to be the default route
 @app.route('/')
@@ -42,19 +49,22 @@ def homePage():
 
 
 @app.route('/start-google-login')
-def start_google_login():
+def start_google_login(): 
     return google.authorize_redirect(url_for('authorize', _external=True), prompt='select_account')
 
 @app.route('/authorize')
 def authorize():
     token = oauth.google.authorize_access_token()
     print(token)
+
+
+    if token:
+        pass
     return redirect('/dashboard')
 
 @app.route('/poker')
 def pokerGame():
     #If not valid session token, redirect to login
-
 
     game_id = request.args.get('gameId')
 

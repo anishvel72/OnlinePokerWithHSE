@@ -1,2 +1,7 @@
+Google Authentication:
 https://docs.authlib.org/en/latest/client/flask.html
 https://www.youtube.com/watch?v=BgYo-wpqi3s
+
+
+Card and Deck Class:
+https://discuss.python.org/t/classes-oop-building-deck-of-52-playing-cards/12798/3

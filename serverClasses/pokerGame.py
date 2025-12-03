@@ -1,5 +1,4 @@
-from deck import Deck
-from card import Card
+from player import *
 import uuid
 
 class PokerGame:
@@ -12,10 +11,8 @@ class PokerGame:
         self._deck.shuffle()
     
     def initialDeal(self):
-        for i in range(2):
-            for player in self._players:
-                player.addToHand(self._deck)
-    
+        for player in self._players:
+            player.draw(self._deck,2)
 
     def endRound(self):
         for player in self._players:
@@ -24,7 +21,15 @@ class PokerGame:
         self._deck = Deck()
         self._deck.shuffle()
 
-
     @property
     def gameID(self):
         return self._gameID
+
+
+if __name__ == '__main__':
+    #Create 2 players
+
+
+    #Have them play a game of poker while printing everything
+    
+    pass

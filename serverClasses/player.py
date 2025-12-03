@@ -11,17 +11,21 @@ class PokerPlayer:
     def name(self):
         return self.__name
     
-    def addMoney(self, n):
+    def changeMoney(self, n):
         self.__money += n
-
 
     @property
     def hand(self):
         return self.__hand
     
-    def addToHand(self, deck):
+    def draw(self, deck, numCards=1):
         newCard = deck.draw()
-        self.__hand.append(newCard)
+        
+        for i in range(numCards):
+            self.__hand.append(newCard)
 
     def clearHand(self):
         self.__hand = []
+
+    def action(self, act, game):
+        return act
