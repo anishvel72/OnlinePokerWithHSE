@@ -5,7 +5,7 @@ class PokerPlayer:
     def __init__(self, name):
         self.__name = name
         self.__hand = []
-        self.__money = 0
+        self.__money = 1000
     
     @property
     def name(self):

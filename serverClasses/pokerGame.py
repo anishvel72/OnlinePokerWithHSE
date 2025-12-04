@@ -3,27 +3,43 @@ import uuid
 
 class PokerGame:
     def __init__(self):
-        self._gameID = str(uuid.uuid4())
-        self._river = []
-        self._players = []
-        self._pot = 0
-        self._deck = Deck()
-        self._deck.shuffle()
+        self.__gameID = str(uuid.uuid4())
+        self.__river = []
+        self.__players = []
+        self.__pot = 0
+        self.__deck = Deck()
+        self.__deck.shuffle()
+        self.__playerQueue = []
     
-    def initialDeal(self):
-        for player in self._players:
-            player.draw(self._deck,2)
+    def startGame(self):
+        for player in self.__playerQueue:
+            self.__players.append(player)
+        self.__playerQueue = []
+        for player in self.__players:
+            player.draw(self.__deck,2)
+
+    def riverDraw(self):
+        self.__river.append(self.__deck.draw())
 
     def endRound(self):
-        for player in self._players:
+        for player in self.__players:
             player.clearHand()
-        self._river = []
-        self._deck = Deck()
-        self._deck.shuffle()
+        self.__river = []
+        self.__deck = Deck()
+        self.__deck.shuffle()
 
+    def addPlayer(self, player):
+        self.__playerQueue.append(player)
     @property
     def gameID(self):
-        return self._gameID
+        return self.__gameID
+    
+    @property
+    def pot(self):
+        return self.__pot
+    
+    def changePot(self, n):
+        self.__pot += n
 
 
 if __name__ == '__main__':

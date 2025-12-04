@@ -13,5 +13,5 @@ class Deck:
         random.shuffle(self.__deck)
     
     def draw(self):
-        top_card = self.__deck.pop(0)
+        top_card = self.__deck.pop()
         return top_card
