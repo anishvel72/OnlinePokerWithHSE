@@ -27,6 +27,9 @@ class PokerGame:
         self.__river = []
         self.__deck = Deck()
         self.__deck.shuffle()
+    
+    def checkWinner(self):
+        pass
 
     def addPlayer(self, player):
         self.__playerQueue.append(player)
@@ -43,9 +46,62 @@ class PokerGame:
 
 
 if __name__ == '__main__':
-    #Create 2 players
+    game = PokerGame()
+
+    # Create players
+    p1 = PokerPlayer("Player 1")
+    p2 = PokerPlayer("Player 2")
+
+    # Add players to queue
+    game.addPlayer(p1)
+    game.addPlayer(p2)
+
+    # Start the game
+    print("Starting game", game.gameID)
+    game.startGame()
+
+    # Show each player's starting hand
+    print("Player hands after deal:")
+    for player in game._PokerGame__players:
+        for card in player.hand:
+            card.reveal()
+        print(player.name, player.hand)
 
 
-    #Have them play a game of poker while printing everything
-    
-    pass
+    print('\n\n')
+    # Draw three river cards
+    print("Drawing first three river cards")
+    for _ in range(3):
+        game.riverDraw()
+    for card in game._PokerGame__river:
+        card.reveal()
+    print("River:", game._PokerGame__river)
+
+
+
+    print('\n\n')
+    # Draw turn card
+    print("Drawing turn card")
+    game.riverDraw()
+    game._PokerGame__river[-1].reveal()
+    print("River:", game._PokerGame__river)
+
+
+    print('\n\n')
+    # Draw river card
+    print("Drawing final river card")
+    game.riverDraw()
+    game._PokerGame__river[-1].reveal()
+    print("River:", game._PokerGame__river)
+
+    # Change pot for demo
+    print("Adding 50 to the pot")
+    game.changePot(50)
+    print("Pot:", game.pot)
+
+    # End the round
+    print("Ending round")
+    game.endRound()
+    print("Players hands:", [player.hand for player in game._PokerGame__players])
+    print("River:", game._PokerGame__river)
+    print("Pot:", game.pot)

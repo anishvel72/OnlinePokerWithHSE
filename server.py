@@ -2,12 +2,11 @@ from flask import Flask, redirect, request, render_template, url_for
 from authlib.integrations.flask_client import OAuth
 
 import config
-
-import time
-
+from serverClasses.pokerGame import *
 app = Flask(__name__)
 app.secret_key = 'temporary'
 oauth = OAuth(app)
+
 
 sessions = {}
 games = {}
@@ -65,10 +64,16 @@ def authorize():
 @app.route('/poker')
 def pokerGame():
     #If not valid session token, redirect to login
-
+    
+    
     game_id = request.args.get('gameId')
 
     #if gameid none, create new game
+    if not game_id:
+        game = PokerGame()
+    else:
+        game = games.get()
+    
     return "Poker Game Placeholder"
 
 if __name__ == "__main__":

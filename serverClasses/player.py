@@ -19,9 +19,10 @@ class PokerPlayer:
         return self.__hand
     
     def draw(self, deck, numCards=1):
-        newCard = deck.draw()
+        
         
         for i in range(numCards):
+            newCard = deck.draw()
             self.__hand.append(newCard)
 
     def clearHand(self):
