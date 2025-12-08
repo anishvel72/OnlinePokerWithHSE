@@ -19,9 +19,6 @@ class Card:
 
     @property
     def suite(self):
-        if self.__covered:
-            return Card.__covered_suit
-        
         return self.__suite
     
     def reveal(self):
@@ -32,10 +29,13 @@ class Card:
     
 
     def __str__(self):
+        
+        representation = ''
         if self.__covered:
-            return "Covered"
+            representation =  "Covered"
         name = Card.reference.get(self.__value, str(self.__value))
-        return f"{name} of {self.__suite}"
+        representation += f"{name} of {self.__suite}"
+        return representation
 
     def __repr__(self):
         return self.__str__()
