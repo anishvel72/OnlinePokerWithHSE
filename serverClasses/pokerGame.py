@@ -29,7 +29,53 @@ class PokerGame:
         self.__deck.shuffle()
     
     def checkWinner(self):
+        playerScores = {}
+        for player in self.__players:
+            cards = player.hand.copy()
+            cards.append(self.__river[0])
+            cards.append(self.__river[1])
+
+
+
+            score = 0
+            
+            #If Royal Flush, add 10^20 or something crazy to score
+
+
+
+            #If Straight Flush 10, add 10^10
+
+            #If 4 pair, add 10^9
+
+            #If Full House, add 10^8, then add value of highest card part of full house * 10
+
+            #If Flush, add 10^7, then add value of highest card in Flush * 10
+
+            #If Straight, add 10^6, then add value of highest card in straight * 10
+
+            #If 3-pair, add 10^5, then add value of highest card in 3-pair * 10
+            
+            #If 2-pair, add 10^4, then add value pair card * 10
+
+            #If pair, add 10^3 and then pair value * 10
+            
+            #Add value of high card by default
+
+
+
         pass
+
+
+    #Helper Functions that I Will use in checkWinner():
+
+
+    def get_ranks(cards):
+        pass
+
+    def get_suits(cards):
+        pass
+
+
 
     def addPlayer(self, player):
         self.__playerQueue.append(player)
@@ -71,7 +117,7 @@ if __name__ == '__main__':
     print('\n\n')
     # Draw three river cards
     print("Drawing first three river cards")
-    for _ in range(3):
+    for i in range(3):
         game.riverDraw()
     for card in game._PokerGame__river:
         card.reveal()

@@ -1,12 +1,18 @@
 from card import Card
 from deck import Deck
+import uuid
 
 class PokerPlayer:
     def __init__(self, name):
         self.__name = name
         self.__hand = []
         self.__money = 1000
+        self.__id = str(uuid.uuid4())
     
+    @property
+    def id(self):
+        return self.__id
+
     @property
     def name(self):
         return self.__name
@@ -27,6 +33,3 @@ class PokerPlayer:
 
     def clearHand(self):
         self.__hand = []
-
-    def action(self, act, game):
-        return act

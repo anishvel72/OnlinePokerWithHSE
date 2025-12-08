@@ -5,6 +5,14 @@ class Card:
     __covered_value = 14
     __covered_suit = "Covered"
 
+    @classmethod
+    def coveredValue(self):
+        return self.__covered_value
+    
+    @classmethod
+    def coveredSuit(self):
+        return self.__covered_suit
+    
 
     def __init__(self, value, suite, covered=True):
         self.__value = value

@@ -8,7 +8,6 @@ class Deck:
         for suite in Card.possible_suites:
             for i in range(1, 14):
                 self.__deck.append(Card(i, suite))
-    
     def shuffle(self):
         random.shuffle(self.__deck)
     
