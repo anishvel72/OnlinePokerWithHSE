@@ -28,39 +28,90 @@ class PokerGame:
         self.__deck = Deck()
         self.__deck.shuffle()
     
+    
+
     def checkWinner(self):
+
+
+        #Scoring Mechanism (A base10 number representation using Base15 math. If the number was Base15, the first number is rank, 2nd number is rank within rank, and 3rd card is high card overall)
+        # 9 for Straight-Flush, 8 for 4 of a kind, 7 for Full House, 6 for plain Flush, 5 for plain straight, 4 for 3 of a kind, 3 for 2 pair, 2 for single pair, 1 for if the player could only win by high card 
         playerScores = {}
+        
+        def getVal(card):
+            return card.value
+        
+
+        def dictionaries(cards):
+            suites = {'Diamonds' : 0, 'Clubs': 0, 'Spades':0, 'Hearts':0}
+            values = {2: 0, 3: 0, 4: 0, 5: 0, 6:0, 7:0, 8:0, 9:0, 10:0, 11:0, 12:0, 13:0, 14:0}
+            for card in cards:
+                values[card.value] += 1
+                suites[card.suite] += 1
+            return values, suites
+        
+
+        
         for player in self.__players:
             cards = player.hand.copy()
             cards.append(self.__river[0])
             cards.append(self.__river[1])
+            
+            cards.sort(key = getVal, reverse=True)
 
+            suites, values = dictionaries(cards)
+
+
+            
 
 
             score = 0
+
+            def isStraight(cards):
+                #We can assume the cards are sorted because we did that earlier
+
+                #Make new list without duplicates
+                checkerList = []
+
+                for i in range(len(cards)):
+                    if cards[i] != cards[i-1]:
+                        checkerList.append(cards[i])
+                
+
+                streak = 1
+                for i in range(1, len(checkerList)):
+                    if checkerList[i % len(checkerList)] == checkerList[(i -1)% len(checkerList)] -1:
+                        streak +=1
+                        if streak == 5:
+                            return True
+                    else:
+                        #reset streak back to 1
+                        streak = 1
+                return False
+
+
+                
+
+            #Check for Flush (check for straight within it as well)
+
+
+            if (suites['Diamonds'] == 5 or suites['Clubs'] == 5 or suites['Spades'] == 5 or suites['Hearts'] == 5):
+                potential_straight = []
+                for key, value in cards.items():
+                    if value ==5:
+                        x = key
+                for card in cards:
+                    if card.suite == x:
+                        potential_straight.append(card)
+
+                if isStraight(cards):
+                    #striaght flush
+                    score = 9 * (15 ** 3)
+                else:
+                    score = 6 * (15 ** 3)
             
-            #If Royal Flush, add 10^20 or something crazy to score
-
-
-
-            #If Straight Flush 10, add 10^10
-
-            #If 4 pair, add 10^9
-
-            #If Full House, add 10^8, then add value of highest card part of full house * 10
-
-            #If Flush, add 10^7, then add value of highest card in Flush * 10
-
-            #If Straight, add 10^6, then add value of highest card in straight * 10
-
-            #If 3-pair, add 10^5, then add value of highest card in 3-pair * 10
-            
-            #If 2-pair, add 10^4, then add value pair card * 10
-
-            #If pair, add 10^3 and then pair value * 10
-            
-            #Add value of high card by default
-
+                
+            #Check for 4 of a kind using values dictionary
+                
 
 
         pass

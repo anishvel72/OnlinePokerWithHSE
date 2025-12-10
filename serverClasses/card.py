@@ -1,8 +1,8 @@
 class Card:
     possible_suites = ['Diamonds', 'Clubs', 'Spades', 'Hearts']
-    reference = {1: 'Ace', 11: 'Jack', 12: 'Queen', 13: 'King'}
-    
-    __covered_value = 14
+    reference = {14: 'Ace', 11: 'Jack', 12: 'Queen', 13: 'King'}
+    #change
+    __covered_value = 15
     __covered_suit = "Covered"
 
     @classmethod

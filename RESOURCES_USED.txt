@@ -5,3 +5,10 @@ https://www.youtube.com/watch?v=BgYo-wpqi3s
 
 Card and Deck Class:
 https://discuss.python.org/t/classes-oop-building-deck-of-52-playing-cards/12798/3
+
+Poker Logic:
+
+https://www.casino.us/poker/strategy/poker-hands/
+
+
+https://www.geeksforgeeks.org/python/iterate-over-a-dictionary-in-python/
