@@ -1,12 +1,232 @@
 <html>
 <head>
   <style>
-    body { margin: 0; overflow: hidden; background: #1a1a1a; }
-    canvas { touch-action: none; width: 100%; height: 100%; }
+    body { 
+      margin: 0; 
+      overflow: hidden; 
+      background: #1a1a1a;
+      font-family: 'Arial', sans-serif;
+    }
+    canvas { 
+      touch-action: none; 
+      width: 100%; 
+      height: 100%; 
+    }
+
+    /* Betting Panel Styles */
+    #betting-panel {
+      position: absolute;
+      top: 20px;
+      right: 20px;
+      background: rgba(20, 20, 30, 0.95);
+      border: 2px solid rgba(255, 215, 0, 0.6);
+      border-radius: 12px;
+      padding: 20px;
+      min-width: 280px;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+      backdrop-filter: blur(10px);
+      transition: opacity 0.3s ease, transform 0.3s ease;
+    }
+
+    #betting-panel.hidden {
+      opacity: 0;
+      pointer-events: none;
+      transform: translateY(-20px);
+    }
+
+    .panel-title {
+      font-size: 20px;
+      font-weight: bold;
+      color: #FFD700;
+      text-align: center;
+      margin-bottom: 15px;
+      text-transform: uppercase;
+      letter-spacing: 2px;
+      text-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
+    }
+
+    .stat-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin: 12px 0;
+      padding: 8px 12px;
+      background: rgba(255, 255, 255, 0.05);
+      border-radius: 6px;
+      border-left: 3px solid #FFD700;
+    }
+
+    .stat-label {
+      color: #AAA;
+      font-size: 14px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+
+    .stat-value {
+      color: #FFD700;
+      font-size: 18px;
+      font-weight: bold;
+      text-shadow: 0 0 10px rgba(255, 215, 0, 0.3);
+    }
+
+    .bet-input-container {
+      margin-top: 20px;
+      padding-top: 15px;
+      border-top: 1px solid rgba(255, 215, 0, 0.3);
+    }
+
+    .bet-input-label {
+      color: #CCC;
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      margin-bottom: 8px;
+      display: block;
+    }
+
+    #bet-input {
+      width: 100%;
+      padding: 12px;
+      background: rgba(0, 0, 0, 0.4);
+      border: 2px solid rgba(255, 215, 0, 0.4);
+      border-radius: 6px;
+      color: #FFD700;
+      font-size: 16px;
+      font-weight: bold;
+      text-align: center;
+      outline: none;
+      transition: border-color 0.3s ease, box-shadow 0.3s ease;
+    }
+
+    #bet-input:focus {
+      border-color: #FFD700;
+      box-shadow: 0 0 15px rgba(255, 215, 0, 0.3);
+    }
+
+    #bet-input::placeholder {
+      color: rgba(255, 215, 0, 0.4);
+    }
+
+    .button-row {
+      display: flex;
+      gap: 8px;
+      margin-top: 12px;
+    }
+
+    .bet-button {
+      flex: 1;
+      padding: 10px;
+      background: linear-gradient(135deg, #FFD700, #FFA500);
+      border: none;
+      border-radius: 6px;
+      color: #000;
+      font-weight: bold;
+      font-size: 14px;
+      cursor: pointer;
+      transition: transform 0.2s ease, box-shadow 0.2s ease;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+
+    .bet-button:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 15px rgba(255, 215, 0, 0.4);
+    }
+
+    .bet-button:active {
+      transform: translateY(0);
+    }
+
+    /* HSE Display Styles */
+    #hse-display {
+      position: absolute;
+      bottom: 20px;
+      right: 20px;
+      background: rgba(20, 20, 30, 0.95);
+      border: 2px solid rgba(100, 200, 255, 0.6);
+      border-radius: 12px;
+      padding: 20px 30px;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+      backdrop-filter: blur(10px);
+    }
+
+    .hse-label {
+      color: #6CC;
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 2px;
+      margin-bottom: 8px;
+      text-align: center;
+    }
+
+    .hse-value {
+      color: #00D4FF;
+      font-size: 48px;
+      font-weight: bold;
+      text-align: center;
+      text-shadow: 0 0 20px rgba(0, 212, 255, 0.5);
+      font-family: 'Courier New', monospace;
+      letter-spacing: 3px;
+    }
+
+    /* Toggle hint */
+    .toggle-hint {
+      position: absolute;
+      top: 20px;
+      left: 20px;
+      color: rgba(255, 255, 255, 0.5);
+      font-size: 12px;
+      background: rgba(0, 0, 0, 0.5);
+      padding: 8px 12px;
+      border-radius: 6px;
+      letter-spacing: 1px;
+    }
   </style>
 </head>
 <body>
   <canvas id="canvas"></canvas>
+  
+  <!-- Betting Panel -->
+  <div id="betting-panel">
+    <div class="panel-title">Betting</div>
+    
+    <div class="stat-row">
+      <span class="stat-label">Pot</span>
+      <span class="stat-value" id="pot-value">$500</span>
+    </div>
+    
+    <div class="stat-row">
+      <span class="stat-label">Your Balance</span>
+      <span class="stat-value" id="balance-value">$10,000</span>
+    </div>
+    
+    <div class="bet-input-container">
+      <label class="bet-input-label">Bet Amount</label>
+      <input type="number" id="bet-input" placeholder="Enter amount..." min="0" step="10">
+      
+      <div class="button-row">
+        <button class="bet-button" onclick="app.quickBet(50)">+50</button>
+        <button class="bet-button" onclick="app.quickBet(100)">+100</button>
+        <button class="bet-button" onclick="app.quickBet(500)">+500</button>
+      </div>
+      
+      <div class="button-row" style="margin-top: 8px;">
+        <button class="bet-button" onclick="app.placeBet()">Bet</button>
+        <button class="bet-button" style="background: linear-gradient(135deg, #FF4444, #CC0000);" onclick="app.fold()">Fold</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- HSE Display -->
+  <div id="hse-display">
+    <div class="hse-label">Hand Strength</div>
+    <div class="hse-value" id="hse-value">0.00</div>
+  </div>
+
+  <!-- Toggle Hint -->
+  <div class="toggle-hint">Press 'B' to toggle betting panel</div>
+
   <script src="https://unpkg.com/filament@1.9.0/filament.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/gl-matrix/3.4.3/gl-matrix-min.js"></script>
   <script>
@@ -658,7 +878,7 @@
 
       setupKeyboardControls() {
         document.addEventListener("keydown", (e) => {
-          if (e.key === "1") {
+          if (e.key === "q") {
             if (!this.card2Up) {
               this.revealUserCard(this.userCard2, this.time2, 1)
               this.time2++
@@ -668,7 +888,8 @@
               this.card2Up = false
             }
           }
-          if (e.key === "2") {
+          
+          if (e.key === "w") {
             if (!this.card1Up) {
               this.revealUserCard(this.userCard1, this.time1, 2)
               this.time1++
@@ -677,6 +898,11 @@
               this.placeCardBack(this.userCard1, 2)
               this.card1Up = false
             }
+          }
+
+          if (event.key.toLowerCase() === "b") {
+            const panel = document.getElementById("betting-panel");
+            panel.classList.toggle("hidden");
           }
         })
       }
