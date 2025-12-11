@@ -1,0 +1,708 @@
+<html>
+<head>
+  <style>
+    body { margin: 0; overflow: hidden; background: #1a1a1a; }
+    canvas { touch-action: none; width: 100%; height: 100%; }
+  </style>
+</head>
+<body>
+  <canvas id="canvas"></canvas>
+  <script src="https://unpkg.com/filament@1.9.0/filament.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/gl-matrix/3.4.3/gl-matrix-min.js"></script>
+  <script>
+    let ibl_url = 'https://raw.githubusercontent.com/BlakeLeviSmith/Poker-3D-assets/main/myenv_ibl.ktx';
+    let sky_url = 'https://raw.githubusercontent.com/BlakeLeviSmith/Poker-3D-assets/main/myenv_skybox.ktx';
+
+    Filament.init([ibl_url, sky_url], () => {
+      window.VertexAttribute = Filament.VertexAttribute
+      window.AttributeType = Filament.VertexBuffer$AttributeType;
+      window.PrimitiveType = Filament.RenderableManager$PrimitiveType
+      window.IndexType = Filament.IndexBuffer$IndexType
+      window.Fov = Filament.Camera$Fov
+      window.LightType = Filament.LightManager$Type
+
+      let canvas = document.getElementById('canvas')
+      let dpr = 2.5
+      canvas.width = window.innerWidth * dpr
+      canvas.height = window.innerHeight * dpr
+      window.app = new App(canvas)
+    })
+
+    class App {
+      constructor(canvas) {
+        this.canvas = canvas
+        let engine = this.engine = Filament.Engine.create(canvas)
+        let scene = this.scene = engine.createScene()
+
+        this.sceneLoaded = false
+        
+        // Separate counters and positions for each phase
+        this.userCount = 0
+        this.opponentCount = 0
+        
+        this.userFb = -2.2937662601470947
+        this.userLr = -0.21454206109046936
+        this.userUpDown = 0.3555052876472473
+        
+        this.opponentFb = -2.2937662601470947
+        this.opponentLr = -0.21454206109046936
+        this.opponentUpDown = 0.3555052876472473
+        
+        this.userCardDealComplete = false
+        this.opponentCardDealComplete = false
+        this.rotationComplete = false
+        this.time1 = 0
+        this.time2 = 0
+        this.usercardDealComplete = false
+        this.personDealt = 0
+        this.playerCount = 3
+        this.OtherPlayerCardDealComplete = false
+
+        // IBL and Skybox
+        let indirectLight = engine.createIblFromKtx(ibl_url)
+        indirectLight.setIntensity(80000)
+        scene.setIndirectLight(indirectLight)
+
+        let skybox = engine.createSkyFromKtx(sky_url)
+        scene.setSkybox(skybox)
+
+        // Renderer setup
+        this.swapChain = engine.createSwapChain()
+        this.renderer = engine.createRenderer()
+        this.camera = engine.createCamera(Filament.EntityManager.get().create())
+        this.view = engine.createView()
+        this.view.setCamera(this.camera)
+        this.view.setScene(scene)
+        this.view.setViewport([0, 0, canvas.width, canvas.height])
+        this.view.setAntiAliasing(Filament.View$AntiAliasing.FXAA)
+        this.view.setSampleCount(8)
+        this.view.setPostProcessingEnabled(false)
+
+        this.camera.setProjectionFov(45, canvas.width / canvas.height, 0.1, 100.0, Fov.VERTICAL)
+
+        this.loadAssets()
+        this.setupCameraControls()
+
+        this.render = this.render.bind(this)
+        this.resize = this.resize.bind(this)
+        window.addEventListener('resize', this.resize)
+
+        window.requestAnimationFrame(this.render)
+        
+        this.card1Up = false
+        this.card2Up = false
+        
+        document.addEventListener("keydown", (e) => {
+          if (e.key === "2") {
+            if (!this.card1Up) {
+              this.revealUserCard(this.userCard1, this.time1, 2)
+              this.time1 +=1
+              this.card1Up = true
+            } else {
+              this.placeCardBack(this.userCard1, 2)
+              this.card1Up = false
+            }
+          }
+          if (e.key === "1") {
+            if (!this.card2Up) {
+              this.revealUserCard(this.userCard2, this.time2, 1)
+              this.time2+=1
+              this.card2Up = true
+            } else {
+              this.placeCardBack(this.userCard2, 1)
+              this.card2Up = false
+            }
+          }
+        })
+      }
+
+
+      async loadAssets() {
+        // Load scene
+        let sceneResponse = await fetch("https://raw.githubusercontent.com/BlakeLeviSmith/Poker-3D-assets/main/Scene.glb")
+        let sceneData = await sceneResponse.arrayBuffer()
+        let loader1 = this.engine.createAssetLoader()
+        let sceneAsset = loader1.createAssetFromBinary(new Uint8Array(sceneData))
+        sceneAsset.loadResources()
+        await new Promise(resolve => setTimeout(resolve, 500))
+
+        let sceneEntities = sceneAsset.getEntities()
+        for (let i = 0; i < sceneEntities.length; i+=1) {
+          this.scene.addEntity(sceneEntities[i])
+        }
+
+        //load deck
+        let deckResponse = await fetch('https://raw.githubusercontent.com/BlakeLeviSmith/Poker-3D-assets/main/Deck.glb')
+        let deckData = await deckResponse.arrayBuffer()
+        let loader2 = this.engine.createAssetLoader()
+        let deckAsset = loader2.createAssetFromBinary(new Uint8Array(deckData))
+        deckAsset.loadResources()
+        await new Promise(resolve => setTimeout(resolve, 500))
+
+        this.deckEntities = deckAsset.getEntities()
+        for (let i = 0; i< this.deckEntities.length; i+=1){
+          this.scene.addEntity(this.deckEntities[i])
+        }
+
+        // Load cards
+        let cardsResponse = await fetch("https://raw.githubusercontent.com/BlakeLeviSmith/Poker-3D-assets/main/CardDeck.glb")
+        let cardsData = await cardsResponse.arrayBuffer()
+        let loader3 = this.engine.createAssetLoader()
+        let cardsAsset = loader3.createAssetFromBinary(new Uint8Array(cardsData))
+        cardsAsset.loadResources()
+        await new Promise(resolve => setTimeout(resolve, 500))
+
+        this.cardEntities = cardsAsset.getEntities()
+        this.cardVisibility = new Array(this.cardEntities.length).fill(true)
+
+        for (let i = 0; i < this.cardEntities.length; i+=1) {
+          this.scene.addEntity(this.cardEntities[i])
+        }
+
+        // Load player
+        let playerResponse = await fetch("https://raw.githubusercontent.com/BlakeLeviSmith/Poker-3D-assets/main/Player.glb")
+        let playerData = await playerResponse.arrayBuffer()
+        let loader4 = this.engine.createAssetLoader()
+        let playerAsset = loader4.createAssetFromBinary(new Uint8Array(playerData))
+        playerAsset.loadResources()
+        await new Promise(resolve => setTimeout(resolve, 500))
+
+        this.playerEntities = playerAsset.getEntities()
+        for (let i = 0; i < this.playerEntities.length; i+=1) {
+          this.scene.addEntity(this.playerEntities[i])
+        }
+
+        this.cardMappings = {
+          'AD': '0', '2D': '1', '3D' : '2', '4D': '3', '5D': '4', '6D': '5', '7D': '6', '8D': '7', '9D': '8', '10D': '9', 'JD': '10', 'QD': '11', 'KD': '12',
+          'AS': '13', '2S': '14', '3S' : '15', '4S': '16', '5S': '17', '6S': '18', '7S': '19', '8S': '20', '9S': '21', '10S': '22', 'JS': '23', 'QS': '24', 'KS': '25',
+          'AH': '26', '2H': '27', '3H' : '28', '4H': '29', '5H': '30', '6H': '31', '7H': '32', '8H': '33', '9H': '34', '10H': '35', 'JH': '36', 'QH': '37', 'KH': '38',
+          'AC': '39', '2C': '40', '3C' : '41', '4C': '42', '5C': '43', '6C': '44', '7C': '45', '8C': '46', '9C': '47', '10C': '48', 'JC': '49', 'QC': '50', 'KC': '51'
+        }
+
+        let unhiddenCard = this.cardMappings['3S']
+        this.hideCard(200)
+        this.showCard(unhiddenCard)
+
+        this.tm = this.engine.getTransformManager()
+        let entity2 = this.deckEntities[0]
+        let inst2 = this.tm.getInstance(entity2)
+
+        let translationcard = new Float32Array([
+          1, 0, 0, 0,
+          0, 1, 0, 0,
+          0, 0, 1, 0,
+          -1.85, 0.167, -0.266, 1
+        ])
+
+        let translationdeck = new Float32Array([
+          1, 0, 0, 0,
+          0, 1, 0, 0,
+          0, 0, 1, 0,
+          -1.85, 0.0, -0.15, 1
+        ])
+
+        //Card Transform - First pass to get KS transform
+        let ksIndex = parseInt(this.cardMappings['KS'])
+        let ksEntity = this.cardEntities[ksIndex]
+        let ksInst = this.tm.getInstance(ksEntity)
+        let ksCurrentTransform = this.tm.getTransform(ksInst)
+        let ksTransform = new Float32Array(16)
+
+        for (let row = 0; row < 4; row+=1) {
+          for (let col = 0; col < 4; col+=1) {
+            let sum = 0
+            for (let k = 0; k < 4; k+=1) {
+              sum += translationcard[k * 4 + row] * ksCurrentTransform[col * 4 + k]
+            }
+            ksTransform[col * 4 + row] = sum
+          }
+        }
+
+        this.ksInitialTransform = new Float32Array(ksTransform)
+        
+        // Get the KS world position to use for all cards
+        let ksWorldX = ksTransform[12]
+        let ksWorldY = ksTransform[13]
+        let ksWorldZ = ksTransform[14]
+
+        // Second pass - apply translation to ALL cards, then move to same world position
+        for (let i = 0; i < this.cardEntities.length; i+=1) {
+          let entity = this.cardEntities[i]
+          let inst = this.tm.getInstance(entity)
+          
+          let currentTransform = this.tm.getTransform(inst)
+          let newTransform = new Float32Array(16)
+          
+          for (let row = 0; row < 4; row+=1) {
+            for (let col = 0; col < 4; col+=1) {
+              let sum = 0
+              for (let k = 0; k < 4; k+=1) {
+                sum += translationcard[k * 4 + row] * currentTransform[col * 4 + k]
+              }
+              newTransform[col * 4 + row] = sum
+            }
+          }
+          
+          this.tm.setTransform(inst, newTransform)
+          this.moveCardWorld(entity, ksWorldX, ksWorldY, ksWorldZ)
+          
+          this.sceneLoaded = true
+        }
+
+        //Deck Transform
+        let deckTransform = this.tm.getTransform(inst2)
+        let deckNew = new Float32Array(16)
+        for (let row = 0; row < 4; row+=1) {
+          for (let col = 0; col < 4; col+=1) {
+            let sum = 0;
+            for (let k = 0; k < 4; k+=1) {
+              sum += translationdeck[k * 4 + row] * deckTransform[col * 4 + k]
+            }
+            deckNew[col * 4 + row] = sum
+          }
+        }
+        this.tm.setTransform(inst2, deckNew)
+
+        //Player Transform - apply same translation as cards
+        for (let i = 0; i < this.playerEntities.length; i+=1) {
+          let entity = this.playerEntities[i]
+          let inst = this.tm.getInstance(entity)
+          let currentTransform = this.tm.getTransform(inst)
+          
+          // Create a NEW array to avoid modifying the original
+          let newTransform = new Float32Array(currentTransform)
+          
+          // Keep the player's original rotation, just set position
+          newTransform[12] = -1.2  // X position
+          newTransform[13] = 0.4   // Y position
+          newTransform[14] = 0.0   // Z position
+          
+          this.tm.setTransform(inst, newTransform)
+        }
+
+        this.deck = this.getShuffledDeck()
+        console.log(this.deck)
+        this.userDeckSpot = 0
+        this.opponentDeckSpot = 2
+      }
+
+      hideCard(index) {
+        if (index > 100){
+          for (let i = 0; i< this.cardEntities.length; i+=1){
+            this.scene.remove(this.cardEntities[i])
+            this.cardVisibility[i] = false
+          }
+          return
+        }
+        if (this.cardVisibility[index]) {
+          this.scene.remove(this.cardEntities[index])
+          this.cardVisibility[index] = false
+        }
+      }
+
+      showCard(index) {
+        if (!this.cardVisibility[index]) {
+          this.scene.addEntity(this.cardEntities[index])
+          this.cardVisibility[index] = true
+        }
+      }
+
+      getShuffledDeck() {
+        const keys = Object.keys(this.cardMappings);
+        
+        // Fisher–Yates shuffle
+        for (let i = keys.length - 1; i > 0; i--) {
+          const j = Math.floor(Math.random() * (i + 1));
+          [keys[i], keys[j]] = [keys[j], keys[i]];
+        }
+
+        return keys;
+      }
+
+      setupCameraControls() {
+        this.isDragging = false
+        this.lastX = 0
+        this.lastY = 0
+        
+        this.fixedEye = [-0.5, 0.65, -0.1]
+        this.initialCenter = [-1, 0.55, 0]
+        
+        let initialDir = [
+          this.initialCenter[0] - this.fixedEye[0],
+          this.initialCenter[1] - this.fixedEye[1],
+          this.initialCenter[2] - this.fixedEye[2]
+        ]
+        
+        let horizontalDist = Math.sqrt(initialDir[0] * initialDir[0] + initialDir[2] * initialDir[2])
+        this.yaw = Math.atan2(initialDir[0], -initialDir[2])
+        this.pitch = Math.atan2(initialDir[1], horizontalDist)
+        
+        this.maxPitch = Math.PI / 3
+        this.maxYaw = Math.PI / 2
+        
+        this.initialYaw = this.yaw
+        this.initialPitch = this.pitch
+        
+        this.up = [0, 1, 0]
+        this.camera.lookAt(this.fixedEye, this.initialCenter, this.up)
+
+        document.addEventListener("mousedown", e => {
+          this.isDragging = true
+          this.lastX = e.clientX
+          this.lastY = e.clientY
+        })
+
+        document.addEventListener("mousemove", e => {
+          if (!this.isDragging) return
+
+          let deltaX = e.clientX - this.lastX
+          let deltaY = e.clientY - this.lastY
+          let sensitivity = 0.003
+
+          this.yaw -= deltaX * sensitivity
+          this.pitch -= deltaY * sensitivity
+          
+          this.yaw = Math.max(this.initialYaw - this.maxYaw, Math.min(this.initialYaw + this.maxYaw, this.yaw))
+          this.pitch = Math.max(this.initialPitch - this.maxPitch, Math.min(this.initialPitch + this.maxPitch, this.pitch))
+          
+          let lookDir = [
+            Math.cos(this.pitch) * Math.sin(this.yaw),
+            Math.sin(this.pitch),
+            -Math.cos(this.pitch) * Math.cos(this.yaw)
+          ]
+          
+          let center = [
+            this.fixedEye[0] + lookDir[0],
+            this.fixedEye[1] + lookDir[1],
+            this.fixedEye[2] + lookDir[2]
+          ]
+          
+          this.camera.lookAt(this.fixedEye, center, this.up)
+
+          this.lastX = e.clientX
+          this.lastY = e.clientY
+        })
+
+        document.addEventListener("mouseup", () => {
+          this.isDragging = false
+        })
+      }
+
+      render() {
+        this.animationManager()
+        this.engine.execute()
+        this.renderer.render(this.swapChain, this.view)
+        window.requestAnimationFrame(this.render)
+      }
+
+      resize() {
+        let dpr = 3.0
+        let width = this.canvas.width = window.innerWidth * dpr
+        let height = this.canvas.height = window.innerHeight * dpr
+        this.view.setViewport([0, 0, width, height])
+        this.camera.setProjectionFov(75, width / height, 0.1, 100.0, Fov.VERTICAL)
+      }
+
+      cardDealHelper(entity, transl){
+        let instance = this.tm.getInstance(entity)
+        this.tm.setTransform(instance, transl)
+      }
+
+      cardDeal(cardNum, phase){
+        let MoveToSpot = new Float32Array(this.ksInitialTransform)
+        
+        if (phase == 1) {
+          // User cards
+          MoveToSpot[12] = this.userFb
+          MoveToSpot[13] = this.userUpDown
+          MoveToSpot[14] = this.userLr
+
+          this.userCount+=1
+          if (this.userCount > 25){
+            this.userCardDealComplete = true
+            this.userCount = 0
+            // Reset to initial values for next user card
+            this.userFb = -2.2937662601470947
+            this.userUpDown = 0.3555052876472473
+            this.userLr = -0.21454206109046936
+          }else{
+            this.userFb+= (0.43/25)
+            this.userLr += (cardNum/625)
+            this.userUpDown += (-0.045/25)
+          }
+        }
+        
+        if (phase == 2) {
+          // Opponent cards
+          MoveToSpot[12] = this.opponentFb
+          MoveToSpot[13] = this.opponentUpDown
+          MoveToSpot[14] = this.opponentLr
+
+          this.opponentCount+=1
+          if (this.opponentCount > 25){
+            this.opponentCardDealComplete = true
+            this.opponentCount = 0
+            this.personDealt += 0.5
+            // Reset to initial values for next opponent card
+            this.opponentFb = -2.2937662601470947
+            this.opponentUpDown = 0.3555052876472473
+            this.opponentLr = -0.21454206109046936
+          }else{
+            if (this.personDealt < 1){
+              this.opponentFb+= ((0.3-cardNum/25)/25)
+              this.opponentLr += (0.6/25)
+              this.opponentUpDown += ((-0.045+cardNum/500)/25)
+            }else{
+              this.opponentFb+= ((-0.02-cardNum/25)/25)
+              this.opponentLr += (0.6/25)
+              this.opponentUpDown += ((-0.045+cardNum/500)/25)
+            }
+          }
+        }
+
+        if (phase == 3) {
+          // Opponent cards
+          MoveToSpot[12] = this.opponentFb
+          MoveToSpot[13] = this.opponentUpDown
+          MoveToSpot[14] = this.opponentLr
+
+          this.opponentCount+=1
+          if (this.opponentCount > 25){
+            this.opponentCardDealComplete = true
+            this.opponentCount = 0
+            this.personDealt += 0.5
+            // Reset to initial values for next opponent card
+            this.opponentFb = -2.2937662601470947
+            this.opponentUpDown = 0.3555052876472473
+            this.opponentLr = -0.21454206109046936
+          }else{
+            if (this.personDealt < 3){
+              this.opponentFb+= (-0.38/25)
+              this.opponentLr += ((0.65-cardNum/25)/25)
+              this.opponentUpDown += ((-0.045+cardNum/500)/25)
+            }else if(this.personDealt >= 3 && this.personDealt < 4){
+              this.opponentFb+= (-0.38/25)
+              this.opponentLr += ((0.336666-cardNum/25)/25)
+              this.opponentUpDown += ((-0.045+cardNum/500)/25)
+            }else if(this.personDealt >= 4 && this.personDealt < 5){
+              this.opponentFb+= (-0.38/25)
+              this.opponentLr += ((0.023333-cardNum/25)/25)
+              this.opponentUpDown += ((-0.045+cardNum/500)/25)
+            }else if(this.personDealt >= 5 && this.personDealt < 6){
+              this.opponentFb+= (-0.38/25)
+              this.opponentLr += ((-0.25-cardNum/25)/25)
+              this.opponentUpDown += ((-0.045+cardNum/500)/25)
+            }
+          }
+        }
+
+
+        if (phase == 4) {
+          // Opponent cards
+          MoveToSpot[12] = this.opponentFb
+          MoveToSpot[13] = this.opponentUpDown
+          MoveToSpot[14] = this.opponentLr
+
+          this.opponentCount+=1
+          if (this.opponentCount > 25){
+            this.opponentCardDealComplete = true
+            this.opponentCount = 0
+            this.personDealt += 0.5
+            // Reset to initial values for next opponent card
+            this.opponentFb = -2.2937662601470947
+            this.opponentUpDown = 0.3555052876472473
+            this.opponentLr = -0.21454206109046936
+          }else{
+            if (this.personDealt < 7){
+              this.opponentFb+= ((-0.08+cardNum/25)/25)
+              this.opponentLr += (-0.5/25)
+              this.opponentUpDown += ((-0.045+cardNum/500)/25)
+            }else{
+              this.opponentFb+= ((0.2+cardNum/25)/25)
+              this.opponentLr += (-0.5/25)
+              this.opponentUpDown += ((-0.045+cardNum/500)/25)
+            }
+          }
+        }
+        
+        return MoveToSpot
+      }
+
+      cardSpin(entity, axis, angle= Math.PI/2) {
+        let instance = this.tm.getInstance(entity)
+        let currentTransform = this.tm.getTransform(instance)
+
+        let cos = Math.cos(angle)
+        let sin = Math.sin(angle)
+        
+        if (axis == "x"){
+          this.rotation = new Float32Array([
+            1, 0, 0, 0,
+            0, cos, -sin, 0,
+            0, sin, cos, 0,
+            0, 0, 0, 1
+          ])
+        }
+        if (axis == "y"){
+          this.rotation = new Float32Array([
+            cos, 0, -sin, 0,
+            0, 1, 0, 0,
+            sin, 0, cos, 0,
+            0, 0, 0, 1
+          ])
+        }
+        if (axis == "z"){
+          this.rotation = new Float32Array([
+            cos, -sin, 0, 0,
+            sin, cos, 0, 0,
+            0, 0, 1, 0,
+            0, 0, 0, 1
+          ]);
+        }
+
+        let result = new Float32Array(16)
+        for (let row = 0; row < 4; row++) {
+          for (let col = 0; col < 4; col++) {
+            let sum = 0
+            for (let k = 0; k < 4; k++) {
+              sum += currentTransform[k * 4 + row] * this.rotation[col * 4 + k]
+            }
+            result[col * 4 + row] = sum
+          }
+        }
+
+        this.tm.setTransform(instance, result)
+      }
+
+      moveCardWorld(entity, worldX, worldY, worldZ) {
+        let instance = this.tm.getInstance(entity)
+        let currentTransform = this.tm.getTransform(instance)
+
+        let rotation = new Float32Array(16)
+        for (let row = 0; row < 3; row++) {
+          for (let col = 0; col < 3; col++) {
+            rotation[col * 4 + row] = currentTransform[col * 4 + row]
+          }
+        }
+        rotation[3] = rotation[7] = rotation[11] = 0
+        rotation[12] = worldX
+        rotation[13] = worldY
+        rotation[14] = worldZ
+        rotation[15] = 1
+
+        this.tm.setTransform(instance, rotation)
+      }
+
+      revealUserCard(cardentity, time, card){
+        if (card == 1){
+          if (time == 0){
+            this.cardSpin(cardentity, "x")
+            this.cardSpin(cardentity, "z", Math.PI/2)
+            
+            this.moveCardWorld(cardentity, -1.0, 0.3, 0.8)
+          }else{
+            this.cardSpin(cardentity, "x")
+            this.moveCardWorld(cardentity, -1.0, 0.3, 0.8)
+          }
+        }
+
+        if (card == 2){
+          if (time == 0){
+            this.cardSpin(cardentity, "x")
+            this.cardSpin(cardentity, "z", Math.PI/2)
+            
+            this.moveCardWorld(cardentity, -1.0, 0.3, 0.75)
+          }else{
+            this.cardSpin(cardentity, "x")
+            this.moveCardWorld(cardentity, -1.0, 0.3, 0.75)
+          }
+        }
+      }
+
+      placeCardBack(cardentity, card){
+        if (card == 1){
+          this.cardSpin(cardentity, "x", -Math.PI/2)
+          this.moveCardWorld(cardentity, -1.2, 0.35, 0.8)
+        }
+
+        if (card == 2){
+          this.cardSpin(cardentity, "x", -Math.PI/2)
+          this.moveCardWorld(cardentity, -1.2, 0.35, 0.75)
+        }
+      }
+      
+      animationManager(){
+        if (!this.sceneLoaded){return}
+        this.FullUserCardDeal()
+        this.OtherPlayerCardDeal()
+        if (this.OtherPlayerCardDealComplete){
+
+        }
+      }
+
+      FullUserCardDeal(){
+        if (this.userCardDealComplete == true){
+          if (this.userDeckSpot >= 1) {
+            this.usercardDealComplete = true
+            return
+          }
+          this.userCardDealComplete = false
+          this.userDeckSpot += 1
+        }
+        
+        // Deal the current user card
+        let cardIndex = parseInt(this.cardMappings[this.deck[this.userDeckSpot]])
+        this.targetCard = this.cardEntities[cardIndex]
+        if (this.userDeckSpot == 0){
+          this.userCard1 = this.targetCard
+        }
+        if (this.userDeckSpot == 1){
+          this.userCard2 = this.targetCard
+        }
+        this.showCard(cardIndex)
+        let moveTo = this.cardDeal(-1 + this.userDeckSpot, 1)
+        this.cardDealHelper(this.targetCard, moveTo)
+      }
+
+      OtherPlayerCardDeal(){
+        if (!this.usercardDealComplete){return}
+        
+        if (this.opponentCardDealComplete == true){
+          this.opponentDeckSpot += 1
+          if (this.opponentDeckSpot >= this.playerCount * 2) {
+            this.OtherPlayerCardDealComplete = true
+            return
+          }
+          this.opponentCardDealComplete = false
+        }
+
+        
+        let cardIndex = parseInt(this.cardMappings[this.deck[this.opponentDeckSpot]])
+        this.targetCard = this.cardEntities[cardIndex]
+        this.showCard(cardIndex)
+        if (this.personDealt < 2){
+          let moveTo = this.cardDeal(this.opponentDeckSpot - 2, 2)
+          this.cardDealHelper(this.targetCard, moveTo)
+          return
+        }
+        if (this.personDealt >= 2 && this.personDealt < 6){
+          console.log("ran")
+          let moveTo = this.cardDeal(this.opponentDeckSpot -6, 3)
+          this.cardDealHelper(this.targetCard, moveTo)
+          return
+        }
+        if (this.personDealt >= 6 && this.personDealt < 8){
+          console.log("ran")
+          let moveTo = this.cardDeal(this.opponentDeckSpot -14, 4)
+          this.cardDealHelper(this.targetCard, moveTo)
+        }
+      }
+
+
+      CommunityCardDeal(){
+
+      }
+    }
+  </script>
+</body>
+</html>
