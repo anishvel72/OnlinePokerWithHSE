@@ -1,4 +1,4 @@
-from card import Card
+from serverClasses.card import Card
 import random
 
 

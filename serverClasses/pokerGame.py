@@ -1,4 +1,4 @@
-from player import *
+from serverClasses.player import *
 import uuid
 
 class PokerGame:

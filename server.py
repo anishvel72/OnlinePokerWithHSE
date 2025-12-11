@@ -22,10 +22,6 @@ google = oauth.register(
     client_kwargs={'scope': 'openid profile email'}
 )
 
-def checkCookie():
-    
-    
-    return
 
 #I want login to be the default route
 @app.route('/')

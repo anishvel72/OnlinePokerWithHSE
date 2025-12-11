@@ -1,5 +1,5 @@
-from card import Card
-from deck import Deck
+from serverClasses.card import Card
+from serverClasses.deck import Deck
 import uuid
 
 class PokerPlayer:
