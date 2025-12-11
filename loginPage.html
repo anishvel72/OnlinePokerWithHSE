@@ -1,40 +1,187 @@
 <html>
-    <head>
-        <meta charset="UTF-8">
-        <style>
-            * {
-                margin: 0%;
-                padding: 0%
-            }
-            body{
-                display:flex;
-                align-items: center;
-                background-color: rgb(39, 92, 39);
-                background-image: url("../Templates/pokerBg.jpg");
-                justify-content: center;
-            }
-            div.button-container{
-                background-color: rgb(30, 73, 30);
-                width: 50vw;
-                height: 40vh;
-                display:flex;
-                align-self: center;
-                justify-content: center;
-                border-color: aliceblue;
-                border: 1px;
-            }
-            a.login-button{
-                align-self: center;
-                margin: auto;
-                color:white;
-                font-size: 22px;
-            }
-        </style>
-    </head>
-    <body>
-        <div class = "button-container">
-            <div class="logo"></div>
-                <a class="login-button" href="/start-google-login">Login with Google</a>
-        </div>
-    </body>
+<head>
+  <meta charset="UTF-8">
+
+  <style>
+    body {
+      margin: 0;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      background: #1a1a1a;
+      background-image: url("../Templates/pokerBg.jpg");
+      background-size: cover;
+      background-position: center;
+      font-family: Arial, sans-serif;
+    }
+
+    .login-card {
+      background: rgba(20, 20, 30, 0.95);
+      border: 2px solid rgba(100, 200, 255, 0.6);
+      border-radius: 16px;
+      padding: 35px 45px;
+      width: 380px;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+      backdrop-filter: blur(10px);
+      text-align: center;
+      animation: fadeIn 0.6s ease;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(20px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .card-title {
+      font-size: 26px;
+      text-transform: uppercase;
+      letter-spacing: 3px;
+      margin-bottom: 25px;
+      color: #00D4FF;
+      text-shadow: 0 0 18px rgba(0, 212, 255, 0.5);
+    }
+
+    /* Google Login Button */
+    .google-btn {
+      width: 100%;
+      padding: 14px;
+      margin-bottom: 20px;
+      background: rgba(0, 212, 255, 0.15);
+      border: 2px solid rgba(0, 212, 255, 0.5);
+      border-radius: 8px;
+      color: #00D4FF;
+      font-size: 18px;
+      font-weight: bold;
+      cursor: not-allowed;
+      opacity: 0.5;
+      transition: 0.25s;
+      text-decoration: none;
+      display: inline-block;
+      pointer-events: none;
+    }
+
+    /* Google button active */
+    .google-btn.active {
+      cursor: pointer;
+      pointer-events: auto;
+      opacity: 1;
+    }
+
+    .google-btn.active:hover {
+      background: rgba(0, 212, 255, 0.3);
+      box-shadow: 0 0 12px rgba(0, 212, 255, 0.3);
+      transform: translateY(-2px);
+    }
+
+    /* Balance Input */
+    .input-label {
+      color: #6CC;
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 2px;
+      text-align: left;
+      margin-bottom: 8px;
+    }
+
+    .balance-input {
+      width: 100%;
+      padding: 12px;
+      background: rgba(0, 0, 0, 0.4);
+      border: 2px solid rgba(100, 200, 255, 0.4);
+      border-radius: 8px;
+      color: #00D4FF;
+      font-size: 18px;
+      outline: none;
+      text-align: center;
+      transition: 0.25s;
+      margin-bottom: 20px;
+    }
+
+    .balance-input:focus {
+      border-color: #00D4FF;
+      box-shadow: 0 0 12px rgba(0, 212, 255, 0.3);
+    }
+
+    /* Confirm Button */
+    .confirm-btn {
+      width: 100%;
+      padding: 12px;
+      background: linear-gradient(135deg, #00D4FF, #6CC);
+      border: none;
+      border-radius: 8px;
+      color: #000;
+      font-weight: bold;
+      font-size: 16px;
+      cursor: pointer;
+      transition: 0.25s;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+    }
+
+    .confirm-btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 15px rgba(0, 212, 255, 0.4);
+    }
+
+  </style>
+</head>
+
+<body>
+
+  <div class="login-card">
+
+    <div class="card-title">Player Login</div>
+
+    <!-- Google login now inactive until balance is saved -->
+    <a class="google-btn" id="googleLogin">Login with Google</a>
+
+    <label class="input-label">Set Starting Balance</label>
+    <input type="number" class="balance-input" id="balance" placeholder="Enter amount..." min="0">
+
+    <button class="confirm-btn" onclick="saveBalance()">Save Balance</button>
+
+  </div>
+
+  <script>
+    let savedBalance = null; // JS balance for later backend use
+
+    function saveBalance() {
+      const value = document.getElementById("balance").value;
+
+      if (value === "" || value < 0) {
+        alert("Please enter a valid balance.");
+        return;
+      }
+
+      // Save to localStorage and JS memory
+      savedBalance = Number(value);
+      localStorage.setItem("playerBalance", savedBalance);
+
+      // Enable Google login button
+      const googleBtn = document.getElementById("googleLogin");
+      googleBtn.classList.add("active");
+
+      alert("Balance saved! Now sign in with Google.");
+    }
+
+    // When Google login is clicked
+    document.getElementById("googleLogin").addEventListener("click", () => {
+      if (!savedBalance) {
+        alert("Please save your balance first.");
+        return;
+      }
+
+      console.log("Balance passed to JS:", savedBalance);
+
+      // TODO: Replace with your backend Google login call
+      // Example:
+      // startGoogleLogin(savedBalance);
+
+      alert("Google login starting...\nBalance: " + savedBalance);
+    });
+  </script>
+
+</body>
 </html>
+
