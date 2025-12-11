@@ -230,6 +230,45 @@
   <script src="https://unpkg.com/filament@1.9.0/filament.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/gl-matrix/3.4.3/gl-matrix-min.js"></script>
   <script>
+      // --- Poker Hand Evaluator ---
+    function evaluateHand(userCards, communityCards) {
+        const ranks = {"2":2,"3":3,"4":4,"5":5,"6":6,"7":7,"8":8,"9":9,"10":10,"J":11,"Q":12,"K":13,"A":14};
+        const suits = {"D":0,"S":1,"H":2,"C":3};
+        
+        const allCards = userCards.concat(communityCards);
+        const rankCounts = {};
+        const suitCounts = [0,0,0,0];
+        
+        for (let card of allCards) {
+            let r = card.slice(0, -1);
+            let s = card.slice(-1);
+            rankCounts[r] = (rankCounts[r] || 0) + 1;
+            suitCounts[suits[s]]++;
+        }
+        
+        const flush = suitCounts.some(c => c >= 5);
+        
+        let pairs = 0, triples = 0, quads = 0;
+        for (let r in rankCounts) {
+            if (rankCounts[r] === 2) pairs++;
+            if (rankCounts[r] === 3) triples++;
+            if (rankCounts[r] === 4) quads++;
+        }
+
+        let highCard = Math.max(...allCards.map(c => ranks[c.slice(0, -1)]));
+        
+        let score = 0;
+        if (quads) score = 0.95;
+        else if (triples && pairs) score = 0.9;
+        else if (flush) score = 0.85;
+        else if (triples) score = 0.7;
+        else if (pairs >= 2) score = 0.6;
+        else if (pairs === 1) score = 0.4;
+        else score = highCard/14 * 0.3 + 0.1;
+
+        return score;
+    }
+
     const ibl_url = 'https://raw.githubusercontent.com/BlakeLeviSmith/Poker-3D-assets/main/myenv_ibl.ktx';
     const sky_url = 'https://raw.githubusercontent.com/BlakeLeviSmith/Poker-3D-assets/main/myenv_skybox.ktx';
 
@@ -258,6 +297,9 @@
 
     class App {
       constructor(canvas) {
+        this.canAct = false; // player cannot bet/fold yet
+        this.revealStage = 0; // 0 = nothing revealed
+
         this.canvas = canvas
         this.engine = Filament.Engine.create(canvas)
         this.scene = this.engine.createScene()
@@ -265,7 +307,7 @@
 
         // Scene state
         this.sceneLoaded = false
-        this.playerCount = 5
+        this.playerCount = 2
         this.deck = []
         
         // Card dealing animation state
@@ -1115,6 +1157,10 @@
           if (this.opponentDeckIndex >= this.playerCount * 2) {
             this.allOpponentsDealt = true
           }
+          if (this.allOpponentsDealt && this.userDealtAll) {
+            this.canAct = true;     // player can now click Bet or Fold
+          }
+
           this.opponentCardDealComplete = false
         }
 
@@ -1168,18 +1214,89 @@
             this.opponentCardDealComplete = false
           }
         }
-        
-        // Flip river cards when all 5 are dealt
-        if (!this.riverFlipped && this.riverDealtCount === 5) {
-          // riverCards has ~130 entries (26 per card), so use every 26th entry
-          for (let i = 0; i < 130; i += 26) {
-            this.cardSpin(this.riverCards[i], "x")
-            this.cardSpin(this.riverCards[i], "z", Math.PI / 2)
-            this.moveCardWorld(this.riverCards[i], -1.4, 0.3, 0.825 - (i / 300))
-          }
-          this.riverFlipped = true
+      
+      }
+
+      advanceRevealStage() {
+        // 0 → pre-flop HSE
+        if (this.revealStage === 0) {
+            this.updateHSEMonteCarlo();
+            this.revealFlop();
+            this.revealStage = 1;
+            return;
+        }
+
+        // 1 → after flop
+        if (this.revealStage === 1) {
+            this.updateHSEMonteCarlo();
+            this.revealTurn();
+            this.revealStage = 2;
+            return;
+        }
+
+        // 2 → after turn
+        if (this.revealStage === 2) {
+            this.updateHSEMonteCarlo();
+            this.revealRiver();
+            this.revealStage = 3;
+            return;
+        }
+
+        // 3 → final HSE after river + final betting round
+        if (this.revealStage === 3) {
+            this.updateHSEMonteCarlo();  // final HSE
+            this.runWinnerCheck();
+            this.revealStage = 4; // lock
+            return;
         }
       }
+
+      revealFlop() {
+        const start = this.playerCount * 2;
+
+        for (let i = 0; i < 3; i++) {
+            const cardName = this.deck[start + i];
+            const index = parseInt(this.cardMappings[cardName]);
+            const entity = this.cardEntities[index];
+
+            // Flip
+            this.cardSpin(entity, "x");
+            this.cardSpin(entity, "z", Math.PI / 2);
+
+            // Position flop cards
+            const zOffset = 0.825 - (i * 0.08);
+            this.moveCardWorld(entity, -1.4, 0.3, zOffset);
+        }
+
+      }
+
+      revealTurn() {
+        const start = this.playerCount * 2;
+        const cardName = this.deck[start + 3];
+        const index = parseInt(this.cardMappings[cardName]);
+        const entity = this.cardEntities[index];
+
+        this.cardSpin(entity, "x");
+        this.cardSpin(entity, "z", Math.PI / 2);
+
+        this.moveCardWorld(entity, -1.4, 0.3, 0.825 - 0.24);
+
+      }
+
+      revealRiver() {
+        const start = this.playerCount * 2;
+        const cardName = this.deck[start + 4];
+        const index = parseInt(this.cardMappings[cardName]);
+        const entity = this.cardEntities[index];
+
+        this.cardSpin(entity, "x");
+        this.cardSpin(entity, "z", Math.PI / 2);
+
+        this.moveCardWorld(entity, -1.4, 0.3, 0.825 - 0.32);
+
+      }
+
+
 
       animationManager() {
         if (!this.sceneLoaded) return
@@ -1212,28 +1329,186 @@
       }
 
       placeBet() {
-        const input = document.getElementById("bet-input");
-        let bet = parseInt(input.value);
+          if (!this.canAct) {
+              alert("Please wait until all cards are dealt.");
+              return;
+          }
 
-        if (isNaN(bet) || bet <= 0) {
-          alert("Enter a positive bet amount.");
-          return;
-        }
-        if (bet > balance) {
-          alert("You do not have enough balance.");
-          return;
-        }
+          const input = document.getElementById("bet-input");
+          let bet = parseInt(input.value);
 
-        // Update values
-        balance -= bet;
-        pot += bet;
+          if (isNaN(bet) || bet <= 0) {
+            alert("Enter a positive bet amount.");
+            return;
+          }
+          if (bet > balance) {
+            alert("You do not have enough balance.");
+            return;
+          }
 
-        // Clear input
-        input.value = "";
+          balance -= bet;
+          pot += bet;
+          input.value = "";
+          updateUI();
 
-        // Update display
-        updateUI();
+          this.advanceRevealStage();
       }
+
+      fold() {
+        if (!this.canAct) {
+            alert("Please wait until all cards are dealt.");
+            return;
+        }
+        this.advanceRevealStage();
+      }
+
+      getUserAndBoardCards() {
+        const userCards = [this.deck[0], this.deck[1]
+        ];
+
+        const communityCards = [
+          this.deck[this.playerCount * 2], this.deck[(this.playerCount * 2)+1], this.deck[(this.playerCount * 2)+2], 
+          this.deck[(this.playerCount * 2)+3], this.deck[(this.playerCount * 2)+4]
+        ];
+
+        return { userCards, communityCards };
+      }
+
+      updateHSE() {
+        if (!this.userCard1 || !this.userCard2) return;
+
+        const { userCards, communityCards } = this.getUserAndBoardCards();
+        const hse = evaluateHand(userCards, communityCards);
+
+        document.getElementById("hse-value").textContent = hse.toFixed(2);
+      }
+
+      monteCarloHandStrength(userCards, communityCards, numPlayers = 5, simulations = 1000) {
+        let wins = 0;
+        let ties = 0;
+
+        const ranks = ["2","3","4","5","6","7","8","9","10","J","Q","K","A"];
+        const suits = ["D","S","H","C"];
+
+        // Build remaining deck
+        const fullDeck = [];
+        for (let r of ranks) {
+            for (let s of suits) {
+                fullDeck.push(r+s);
+            }
+        }
+
+        // Remove user and community cards
+        const used = new Set([...userCards, ...communityCards]);
+        const remainingDeck = fullDeck.filter(c => !used.has(c));
+
+        for (let sim = 0; sim < simulations; sim++) {
+            // Shuffle remaining deck
+            const deckCopy = [...remainingDeck];
+            for (let i = deckCopy.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [deckCopy[i], deckCopy[j]] = [deckCopy[j], deckCopy[i]];
+            }
+
+            // Complete community cards if not all revealed
+            const currentCommunity = [...communityCards];
+            while (currentCommunity.length < 5) {
+                currentCommunity.push(deckCopy.pop());
+            }
+
+            // Deal opponent hands
+            const opponents = [];
+            for (let p = 0; p < numPlayers - 1; p++) {
+                opponents.push([deckCopy.pop(), deckCopy.pop()]);
+            }
+
+            const userScore = evaluateHand(userCards, currentCommunity);
+            let bestScore = userScore;
+            let tieCount = 1;
+
+            for (let opp of opponents) {
+                const oppScore = evaluateHand(opp, currentCommunity);
+                if (oppScore > bestScore) {
+                    bestScore = oppScore;
+                    tieCount = 0;
+                } else if (oppScore === bestScore) {
+                    tieCount++;
+                }
+            }
+
+            if (bestScore === userScore) {
+                if (tieCount === 0) wins++;
+                else ties++;
+            }
+        }
+
+        return {
+            winProbability: wins / simulations,
+            tieProbability: ties / simulations
+        };
+    }
+
+      getVisibleCommunityCards() {
+      const boardStart = this.playerCount * 2;
+      const visible = [];
+
+      for (let i = 0; i < this.riverDealtCount; i++) {
+          visible.push(this.deck[boardStart + i]);
+      }
+      return visible;
+    }
+    
+      updateHSEMonteCarlo() {
+        if (!this.userCard1 || !this.userCard2) return;
+
+        const userCards = [this.deck[0], this.deck[1]];
+        const communityCards = this.getVisibleCommunityCards();
+
+        // If no board yet, don't calculate
+        if (communityCards.length === 0) return;
+
+        // Run 500 simulations (fast)
+        const { winProbability, tieProbability } =
+            this.monteCarloHandStrength(userCards, communityCards, this.playerCount, 500);
+
+        const hseValue = (winProbability + tieProbability / 2);
+
+        document.getElementById("hse-value").textContent =
+            hseValue.toFixed(2);
+    }
+
+      runWinnerCheck() {
+      const boardStart = this.playerCount * 2;
+
+      const board = [
+          this.deck[boardStart],
+          this.deck[boardStart + 1],
+          this.deck[boardStart + 2],
+          this.deck[boardStart + 3],
+          this.deck[boardStart + 4]
+      ];
+
+      const userHand = [this.deck[0], this.deck[1]];
+
+      let userScore = evaluateHand(userHand, board);
+      let bestScore = userScore;
+      let winner = "User";
+
+      // Evaluate all opponents
+      for (let i = 1; i < this.playerCount; i++) {
+          const opp1 = this.deck[i * 2];
+          const opp2 = this.deck[i * 2 + 1];
+          const oppScore = evaluateHand([opp1, opp2], board);
+
+          if (oppScore > bestScore) {
+              bestScore = oppScore;
+              winner = "Opponent " + i;
+          }
+      }
+
+      console.log("Winner:", winner, "with score:", bestScore);
+    }
+
 
     }
   </script>
