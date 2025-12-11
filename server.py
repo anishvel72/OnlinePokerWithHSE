@@ -1,4 +1,4 @@
-from flask import Flask, redirect, request, render_template, url_for, make_response, jsonify
+from flask import Flask, redirect, request, render_template, url_for, make_response, jsonify, send_file
 from authlib.integrations.flask_client import OAuth
 import datetime
 import config
@@ -12,6 +12,7 @@ oauth = OAuth(app)
 sessions = {}
 games = {}
 
+players = {}
 
 
 CONF_URL = 'https://accounts.google.com/.well-known/openid-configuration'
@@ -94,26 +95,34 @@ def pokerGame():
         games[game.gameID] = game
         return redirect(f'/poker?gameId={game.gameID}')
     
+
+    
     game = games.get(game_id)
     
 
     player_name = user.get("name")
 
-    game.addPlayer(player_name)
+    session_token = request.cookies.get('session_token')
 
-    return "Poker Game Placeholder"
+    players[session_token] = PokerPlayer(player_name)
+
+    game.addPlayer(players[session_token])
+
+    return send_file('./sim.html')
 
 @app.route('/poker', methods=['POST'])
 def pokerActions():
     user = get_current_user()
+
+    session_token = request.cookies.get('session_token')
+
+
     if not user:
         return jsonify({'error': 'Not Logged in'})
     
 
     
-    for player in game.players:
-        if player.name ==user:
-            current_player = player
+    current_player = players[session_token]
     
 
     data = request.get_json()
