@@ -270,50 +270,246 @@
   <div class="toggle-hint">Press 'B' to toggle betting panel</div>
 
   <!-- WIN/LOSS BANNER -->
-<div id="result-banner" class="hidden">
+<div id="result-banner">
   <div id="result-text">Winner: User</div>
 </div>
 
   <script src="https://unpkg.com/filament@1.9.0/filament.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/gl-matrix/3.4.3/gl-matrix-min.js"></script>
   <script>
-      // --- Poker Hand Evaluator ---
+    // Parse "AD", "10H", "7S" → { rank: 2..14, suit: 0..3 }
+    function parseCard(code) {
+      const suitChar = code.slice(-1);
+      const rankStr  = code.slice(0, -1);
+
+      const rankMap = {
+        "2": 2, "3": 3, "4": 4, "5": 5, "6": 6,
+        "7": 7, "8": 8, "9": 9, "10": 10,
+        "J": 11, "Q": 12, "K": 13, "A": 14
+      };
+
+      const suitMap = { "D": 0, "C": 1, "H": 2, "S": 3 };
+
+      return {
+        rank: rankMap[rankStr],
+        suit: suitMap[suitChar]
+      };
+    }
+
+    // Evaluate a *single 5-card hand* (array of 5 parsed cards)
+    // Returns a numeric score; higher is better.
+    function evaluate5(parsedCards) {
+      // Extract ranks & suits
+      const ranks = parsedCards.map(c => c.rank).sort((a, b) => a - b); // ascending
+      const suits = parsedCards.map(c => c.suit);
+
+      // Count ranks
+      const rankCountMap = new Map();
+      for (let r of ranks) {
+        rankCountMap.set(r, (rankCountMap.get(r) || 0) + 1);
+      }
+
+      // Convert to array [{rank, count}, ...], sort by (count desc, rank desc)
+      const rankCounts = Array.from(rankCountMap.entries())
+        .map(([rank, count]) => ({ rank, count }))
+        .sort((a, b) => {
+          if (b.count !== a.count) return b.count - a.count;
+          return b.rank - a.rank;
+        });
+
+      // Check flush
+      const suitCountMap = new Map();
+      for (let s of suits) {
+        suitCountMap.set(s, (suitCountMap.get(s) || 0) + 1);
+      }
+      let isFlush = false;
+      for (let cnt of suitCountMap.values()) {
+        if (cnt === 5) {
+          isFlush = true;
+          break;
+        }
+      }
+
+      // Check straight
+      let isStraight = false;
+      let straightHigh = 0;
+
+      // Unique ranks for straight detection
+      const uniqueRanks = [...new Set(ranks)].sort((a, b) => a - b);
+
+      if (uniqueRanks.length === 5) {
+        // Normal straight: max - min == 4
+        const minR = uniqueRanks[0];
+        const maxR = uniqueRanks[4];
+        if (maxR - minR === 4) {
+          isStraight = true;
+          straightHigh = maxR;
+        }
+
+        // Wheel (A-5 straight): [2,3,4,5,14] → 5-high straight
+        const wheel = [2, 3, 4, 5, 14];
+        let isWheel = true;
+        for (let i = 0; i < 5; i++) {
+          if (uniqueRanks[i] !== wheel[i]) {
+            isWheel = false;
+            break;
+          }
+        }
+        if (isWheel) {
+          isStraight = true;
+          straightHigh = 5;
+        }
+      }
+
+      // Determine hand category
+      // Categories:
+      // 8: Straight flush
+      // 7: Four of a kind
+      // 6: Full house
+      // 5: Flush
+      // 4: Straight
+      // 3: Three of a kind
+      // 2: Two pair
+      // 1: One pair
+      // 0: High card
+
+      let category = 0;
+      let tiebreakers = [];
+
+      const counts = rankCounts.map(rc => rc.count);
+
+      // Straight flush
+      if (isFlush && isStraight) {
+        category = 8;
+        tiebreakers = [straightHigh];
+      }
+      // Four of a kind
+      else if (counts[0] === 4) {
+        category = 7;
+        const fourRank = rankCounts[0].rank;
+        const kicker   = rankCounts[1].rank;
+        tiebreakers = [fourRank, kicker];
+      }
+      // Full house
+      else if (counts[0] === 3 && counts[1] === 2) {
+        category = 6;
+        const tripleRank = rankCounts[0].rank;
+        const pairRank   = rankCounts[1].rank;
+        tiebreakers = [tripleRank, pairRank];
+      }
+      // Flush
+      else if (isFlush) {
+        category = 5;
+        // High cards sorted descending
+        const descRanks = [...ranks].sort((a, b) => b - a);
+        tiebreakers = descRanks;
+      }
+      // Straight
+      else if (isStraight) {
+        category = 4;
+        tiebreakers = [straightHigh];
+      }
+      // Three of a kind
+      else if (counts[0] === 3) {
+        category = 3;
+        const tripleRank = rankCounts[0].rank;
+        const kickers = rankCounts
+          .slice(1) // remaining ranks
+          .map(rc => rc.rank)
+          .sort((a, b) => b - a); // high to low
+        tiebreakers = [tripleRank, kickers[0], kickers[1]];
+      }
+      // Two pair
+      else if (counts[0] === 2 && counts[1] === 2) {
+        category = 2;
+        const pairRanks = [rankCounts[0].rank, rankCounts[1].rank].sort((a, b) => b - a);
+        const kicker = rankCounts[2].rank;
+        tiebreakers = [pairRanks[0], pairRanks[1], kicker];
+      }
+      // One pair
+      else if (counts[0] === 2) {
+        category = 1;
+        const pairRank = rankCounts[0].rank;
+        const kickers = rankCounts
+          .slice(1)
+          .map(rc => rc.rank)
+          .sort((a, b) => b - a); // 3 kickers
+        tiebreakers = [pairRank, kickers[0], kickers[1], kickers[2]];
+      }
+      // High card
+      else {
+        category = 0;
+        const descRanks = [...ranks].sort((a, b) => b - a);
+        tiebreakers = descRanks;
+      }
+
+      // Build a single integer:
+      // [category][r1][r2][r3][r4][r5]
+      // using 4 bits per rank slot (ranks 2–14 fit in 4 bits? No: 14 needs 4 bits)
+      // We'll shift:
+      // category: bits 20-23
+      // r1: 16-19, r2: 12-15, r3: 8-11, r4: 4-7, r5: 0-3
+      let score = (category << 20);
+
+      for (let i = 0; i < 5; i++) {
+        const r = tiebreakers[i] || 0;
+        const shift = 16 - 4 * i;
+        score |= (r << shift);
+      }
+
+      return score;
+    }
+
+    // Evaluate the *best 5-card poker hand* from N cards (N >= 5, max 7)
+    // cardCodes: array of "AD", "10H", etc.
+    function evaluateBest5(cardCodes) {
+      if (cardCodes.length < 5) return 0; // not enough info
+
+      const parsed = cardCodes.map(parseCard);
+      const n = parsed.length;
+
+      // Exactly 5 cards → single evaluation
+      if (n === 5) {
+        return evaluate5(parsed);
+      }
+
+      // For 6 or 7 cards: choose all 5-card combinations, pick the best.
+      let bestScore = 0;
+
+      for (let a = 0; a < n - 4; a++) {
+        for (let b = a + 1; b < n - 3; b++) {
+          for (let c = b + 1; c < n - 2; c++) {
+            for (let d = c + 1; d < n - 1; d++) {
+              for (let e = d + 1; e < n; e++) {
+                const hand = [
+                  parsed[a],
+                  parsed[b],
+                  parsed[c],
+                  parsed[d],
+                  parsed[e]
+                ];
+                const score = evaluate5(hand);
+                if (score > bestScore) {
+                  bestScore = score;
+                }
+              }
+            }
+          }
+        }
+      }
+
+      return bestScore;
+    }
+
+    // ==== PUBLIC ENTRY POINT ====
+    // This replaces your old evaluateHand(userCards, communityCards)
+    //
+    // userCards: e.g. ["AD","KS"]
+    // communityCards: e.g. ["2H","3H","4H","5H","6H"]
+    // Returns a numeric strength where larger is better.
     function evaluateHand(userCards, communityCards) {
-        const ranks = {"2":2,"3":3,"4":4,"5":5,"6":6,"7":7,"8":8,"9":9,"10":10,"J":11,"Q":12,"K":13,"A":14};
-        const suits = {"D":0,"S":1,"H":2,"C":3};
-        
-        const allCards = userCards.concat(communityCards);
-        const rankCounts = {};
-        const suitCounts = [0,0,0,0];
-        
-        for (let card of allCards) {
-            let r = card.slice(0, -1);
-            let s = card.slice(-1);
-            rankCounts[r] = (rankCounts[r] || 0) + 1;
-            suitCounts[suits[s]]++;
-        }
-        
-        const flush = suitCounts.some(c => c >= 5);
-        
-        let pairs = 0, triples = 0, quads = 0;
-        for (let r in rankCounts) {
-            if (rankCounts[r] === 2) pairs++;
-            if (rankCounts[r] === 3) triples++;
-            if (rankCounts[r] === 4) quads++;
-        }
-
-        let highCard = Math.max(...allCards.map(c => ranks[c.slice(0, -1)]));
-        
-        let score = 0;
-        if (quads) score = 0.95;
-        else if (triples && pairs) score = 0.9;
-        else if (flush) score = 0.85;
-        else if (triples) score = 0.7;
-        else if (pairs >= 2) score = 0.6;
-        else if (pairs === 1) score = 0.4;
-        else score = highCard/14 * 0.3 + 0.1;
-
-        return score;
+      const all = userCards.concat(communityCards);
+      return evaluateBest5(all);
     }
 
     const ibl_url = 'https://raw.githubusercontent.com/BlakeLeviSmith/Poker-3D-assets/main/myenv_ibl.ktx';
