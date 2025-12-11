@@ -37,7 +37,7 @@
 
         // Scene state
         this.sceneLoaded = false
-        this.playerCount = 3
+        this.playerCount = 5
         this.deck = []
         
         // Card dealing animation state
@@ -239,7 +239,7 @@
         }
 
         // User Placment
-        for (let i = 7; i < 10; i++) {
+        for (let i = 7; i < 11; i++) {
           const entity = this.playerEntities[i]
           const inst = this.tm.getInstance(entity)
           const currentTransform = this.tm.getTransform(inst)
@@ -252,20 +252,134 @@
           this.tm.setTransform(inst, newTransform)
         }
 
-        //
-        for (let i = 7; i < 10; i++) {
+        // Opponent 3 Placment
+        if (this.playerCount >= 4){
+          for (let i = 0; i < 7; i++) {
+            const entity = this.playerEntities[i]
+            const inst = this.tm.getInstance(entity)
+            const currentTransform = this.tm.getTransform(inst)
+            const newTransform = new Float32Array(currentTransform)
+            
+            newTransform[12] = -2.7
+            newTransform[13] = 0.13
+            newTransform[14] = 0.45
+            
+            this.tm.setTransform(inst, newTransform)
+          }
+        }
+
+        // Opponenet 4 Placment
+        if (this.playerCount >= 5){
+          for (let i = 11; i < 18; i++) {
+            const entity = this.playerEntities[i]
+            const inst = this.tm.getInstance(entity)
+            const currentTransform = this.tm.getTransform(inst)
+            const newTransform = new Float32Array(currentTransform)
+            
+            newTransform[12] = -2.7
+            newTransform[13] = 0.13
+            newTransform[14] = 0.0
+            
+            this.tm.setTransform(inst, newTransform)
+          }
+        }
+
+        // Opponenet 5 Placment
+        if (this.playerCount >= 6){
+          for (let i = 18; i < 25; i++) {
+            const entity = this.playerEntities[i]
+            const inst = this.tm.getInstance(entity)
+            const currentTransform = this.tm.getTransform(inst)
+            const newTransform = new Float32Array(currentTransform)
+            
+            newTransform[12] = -2.7
+            newTransform[13] = 0.13
+            newTransform[14] = -0.45
+            
+            this.tm.setTransform(inst, newTransform)
+          }
+        }
+
+        // Opponenet 6 Placment
+        if (this.playerCount >= 7){
+          for (let i = 25; i < 32; i++) {
+            const entity = this.playerEntities[i]
+            const inst = this.tm.getInstance(entity)
+            const currentTransform = this.tm.getTransform(inst)
+            const newTransform = new Float32Array(currentTransform)
+            
+            newTransform[12] = -2.7
+            newTransform[13] = 0.13
+            newTransform[14] = -0.9
+            
+            this.tm.setTransform(inst, newTransform)
+          }
+        }
+
+        // Opponenet 1 Placment
+        for (let i = 32; i < 39; i++) {
           const entity = this.playerEntities[i]
           const inst = this.tm.getInstance(entity)
           const currentTransform = this.tm.getTransform(inst)
           const newTransform = new Float32Array(currentTransform)
           
-          newTransform[12] = -0.8
+          newTransform[12] = -1.7
           newTransform[13] = 0.13
-          newTransform[14] = -0.23
+          newTransform[14] = 0.6
           
           this.tm.setTransform(inst, newTransform)
         }
 
+        // Opponenet 7 Placment
+        if (this.playerCount >= 8){
+          for (let i = 39; i < 46; i++) {
+            const entity = this.playerEntities[i]
+            const inst = this.tm.getInstance(entity)
+            const currentTransform = this.tm.getTransform(inst)
+            const newTransform = new Float32Array(currentTransform)
+            
+            newTransform[12] = -2.15
+            newTransform[13] = 0.13
+            newTransform[14] = -1.1
+            
+            this.tm.setTransform(inst, newTransform)
+          }
+        }
+
+        // Opponenet 8 Placment
+        if (this.playerCount == 9){
+          for (let i = 46; i < 53; i++) {
+            const entity = this.playerEntities[i]
+            const inst = this.tm.getInstance(entity)
+            const currentTransform = this.tm.getTransform(inst)
+            const newTransform = new Float32Array(currentTransform)
+            
+            newTransform[12] = -1.7
+            newTransform[13] = 0.13
+            newTransform[14] = -1.1
+            
+            this.tm.setTransform(inst, newTransform)
+          }
+        }
+
+        // Opponenet 2 Placment
+        if (this.playerCount >= 3){
+          for (let i = 53; i < 60; i++) {
+            const entity = this.playerEntities[i]
+            const inst = this.tm.getInstance(entity)
+            const currentTransform = this.tm.getTransform(inst)
+            const newTransform = new Float32Array(currentTransform)
+            
+            newTransform[12] = -2.15
+            newTransform[13] = 0.13
+            newTransform[14] = 0.6
+            
+            this.tm.setTransform(inst, newTransform)
+          }
+        }
+
+
+        this.toggleArm(1)
       }
 
       multiplyMatrices(a, b) {
@@ -293,6 +407,17 @@
         if (this.cardVisibility[index]) {
           this.scene.remove(this.cardEntities[index])
           this.cardVisibility[index] = false
+        }
+      }
+
+      toggleArm(postion){
+        if (postion == 1){
+          this.scene.remove(this.playerEntities[10])
+          this.scene.addEntity(this.playerEntities[7])
+        }
+        if (postion == 2){
+          this.scene.remove(this.playerEntities[7])
+          this.scene.addEntity(this.playerEntities[10])
         }
       }
 
@@ -452,36 +577,36 @@
             
           case 'opponent3':
             this.animFb += (-0.38 / 25)
-            this.animLr += ((0.65 - cardNum / 25) / 25)
+            this.animLr += ((0.75 - cardNum / 25) / 25)
             this.animUpDown += ((-0.045 + cardNum / 500) / 25)
             break
             
           case 'opponent4':
             this.animFb += (-0.38 / 25)
-            this.animLr += ((0.336666 - cardNum / 25) / 25)
+            this.animLr += ((0.473332 - cardNum / 25) / 25)
             this.animUpDown += ((-0.045 + cardNum / 500) / 25)
             break
             
           case 'opponent5':
             this.animFb += (-0.38 / 25)
-            this.animLr += ((0.023333 - cardNum / 25) / 25)
+            this.animLr += ((0.196666 - cardNum / 25) / 25)
             this.animUpDown += ((-0.045 + cardNum / 500) / 25)
             break
             
           case 'opponent6':
             this.animFb += (-0.38 / 25)
-            this.animLr += ((-0.25 - cardNum / 25) / 25)
+            this.animLr += ((-0.08 - cardNum / 25) / 25)
             this.animUpDown += ((-0.045 + cardNum / 500) / 25)
             break
             
           case 'opponent7':
-            this.animFb += ((-0.08 + cardNum / 25) / 25)
+            this.animFb += ((-0.6 + cardNum / 25) / 25)
             this.animLr += (-0.5 / 25)
             this.animUpDown += ((-0.045 + cardNum / 500) / 25)
             break
             
           case 'opponent8':
-            this.animFb += ((0.2 + cardNum / 25) / 25)
+            this.animFb += ((-0.2 + cardNum / 25) / 25)
             this.animLr += (-0.5 / 25)
             this.animUpDown += ((-0.045 + cardNum / 500) / 25)
             break
@@ -551,9 +676,9 @@
       }
 
       revealUserCard(cardEntity, time, cardNum) {
-        const xPos = -1.0
-        const yPos = 0.3
-        const zPos = cardNum === 1 ? 0.8 : 0.75
+        const xPos = -0.64
+        const yPos = 0.48
+        const zPos = cardNum === 1 ? 0.825 : 0.775
 
         if (time === 0) {
           this.cardSpin(cardEntity, "x")
@@ -681,6 +806,7 @@
         this.dealUserCards()
         this.dealOpponentCards()
         this.dealRiverCards()
+        if (this.card1Up || this.card2Up){this.toggleArm(2)}else{this.toggleArm(1)}
       }
 
       render() {
