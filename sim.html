@@ -47,6 +47,14 @@
         this.opponentFb = -2.2937662601470947
         this.opponentLr = -0.21454206109046936
         this.opponentUpDown = 0.3555052876472473
+
+        this.riverFb = -2.2937662601470947
+        this.riverLr = -0.21454206109046936
+        this.riverUpDown = 0.3555052876472473
+        this.riverDealt = 0
+        this.riverCardDealComplete = false
+        this.riverCards = []
+        this.riverFlip = false
         
         this.userCardDealComplete = false
         this.opponentCardDealComplete = false
@@ -264,7 +272,23 @@
         this.tm.setTransform(inst2, deckNew)
 
         //Player Transform - apply same translation as cards
-        for (let i = 0; i < this.playerEntities.length; i+=1) {
+        // for (let i = 0; i < 7; i+=1) {
+        //   let entity = this.playerEntities[i]
+        //   let inst = this.tm.getInstance(entity)
+        //   let currentTransform = this.tm.getTransform(inst)
+          
+        //   // Create a NEW array to avoid modifying the original
+        //   let newTransform = new Float32Array(currentTransform)
+          
+        //   // Keep the player's original rotation, just set position
+        //   newTransform[12] = -1.2  // X position
+        //   newTransform[13] = 0.1   // Y position
+        //   newTransform[14] = -0.2   // Z position
+          
+        //   this.tm.setTransform(inst, newTransform)
+        // }
+
+        for (let i = 7; i < 10; i+=1) {
           let entity = this.playerEntities[i]
           let inst = this.tm.getInstance(entity)
           let currentTransform = this.tm.getTransform(inst)
@@ -273,13 +297,12 @@
           let newTransform = new Float32Array(currentTransform)
           
           // Keep the player's original rotation, just set position
-          newTransform[12] = -1.2  // X position
-          newTransform[13] = 0.4   // Y position
-          newTransform[14] = 0.0   // Z position
+          newTransform[12] = -0.8  // X position
+          newTransform[13] = 0.13   // Y position
+          newTransform[14] = -0.23   // Z position
           
           this.tm.setTransform(inst, newTransform)
         }
-
         this.deck = this.getShuffledDeck()
         console.log(this.deck)
         this.userDeckSpot = 0
@@ -524,6 +547,29 @@
             }
           }
         }
+
+
+        if (phase == 5) {
+          // Opponent cards
+          MoveToSpot[12] = this.riverFb
+          MoveToSpot[13] = this.riverUpDown
+          MoveToSpot[14] = this.riverLr
+
+          this.opponentCount+=1
+          if (this.opponentCount > 25){
+            this.opponentCardDealComplete = true
+            this.opponentCount = 0
+            this.riverDealt += 1
+            // Reset to initial values for next opponent card
+            this.riverFb = -2.2937662601470947
+            this.riverUpDown = 0.3555052876472473
+            this.riverLr = -0.21454206109046936
+          }else{
+            this.riverFb+= (0.1/25)
+            this.riverLr += ((0.2-cardNum/10)/25)
+            this.riverUpDown += ((-0.045+cardNum/500)/25)
+          }
+        }
         
         return MoveToSpot
       }
@@ -665,41 +711,52 @@
       }
 
       OtherPlayerCardDeal(){
-        if (!this.usercardDealComplete){return}
-        
+        if (!this.usercardDealComplete){return}        
         if (this.opponentCardDealComplete == true){
           this.opponentDeckSpot += 1
           if (this.opponentDeckSpot >= this.playerCount * 2) {
             this.OtherPlayerCardDealComplete = true
-            return
           }
           this.opponentCardDealComplete = false
         }
 
-        
-        let cardIndex = parseInt(this.cardMappings[this.deck[this.opponentDeckSpot]])
-        this.targetCard = this.cardEntities[cardIndex]
-        this.showCard(cardIndex)
-        if (this.personDealt < 2){
-          let moveTo = this.cardDeal(this.opponentDeckSpot - 2, 2)
-          this.cardDealHelper(this.targetCard, moveTo)
-          return
-        }
-        if (this.personDealt >= 2 && this.personDealt < 6){
-          console.log("ran")
-          let moveTo = this.cardDeal(this.opponentDeckSpot -6, 3)
-          this.cardDealHelper(this.targetCard, moveTo)
-          return
-        }
-        if (this.personDealt >= 6 && this.personDealt < 8){
-          console.log("ran")
-          let moveTo = this.cardDeal(this.opponentDeckSpot -14, 4)
-          this.cardDealHelper(this.targetCard, moveTo)
-        }
-      }
+          let cardIndex = parseInt(this.cardMappings[this.deck[this.opponentDeckSpot]])
+          this.targetCard = this.cardEntities[cardIndex]
+          this.showCard(cardIndex)
 
+        if (!this.OtherPlayerCardDealComplete){
+          if (this.personDealt < 2){
+            let moveTo = this.cardDeal(this.opponentDeckSpot - 2, 2)
+            this.cardDealHelper(this.targetCard, moveTo)
+            return
+          }
+          if (this.personDealt >= 2 && this.personDealt < 6){
+            let moveTo = this.cardDeal(this.opponentDeckSpot -6, 3)
+            this.cardDealHelper(this.targetCard, moveTo)
+            return
+          }
+          if (this.personDealt >= 6 && this.personDealt < 8){
+            let moveTo = this.cardDeal(this.opponentDeckSpot -14, 4)
+            this.cardDealHelper(this.targetCard, moveTo)
+          }
+        }
 
-      CommunityCardDeal(){
+        if(this.OtherPlayerCardDealComplete){
+          if (this.riverDealt < 5){
+            moveTo = this.cardDeal(this.opponentDeckSpot - this.playerCount * 2, 5)
+            this.cardDealHelper(this.targetCard, moveTo)
+            this.riverCards.push(this.targetCard)
+          }
+          if(this.riverFlip == false && this.riverDealt == 5){
+            for(let i = 0; i < 130; i += 26){
+              console.log(this.riverCards.length)
+              this.cardSpin(this.riverCards[i], "x")
+              this.cardSpin(this.riverCards[i], "z", Math.PI/2)
+              this.moveCardWorld(this.riverCards[i], -1.4, 0.3, 0.825-(i/300))
+              if (i == 26){this.riverFlip = true}
+            }
+          }
+        }
 
       }
     }
