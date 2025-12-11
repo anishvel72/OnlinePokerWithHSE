@@ -125,6 +125,7 @@
         await this.loadDeck()
         await this.loadCards()
         await this.loadPlayers()
+        await this.loadChips()
         
         this.deck = this.getShuffledDeck()
         this.sceneLoaded = true
@@ -171,6 +172,152 @@
         const newTransform = this.multiplyMatrices(deckTranslation, currentTransform)
         this.tm.setTransform(deckInst, newTransform)
       }
+
+      async loadChips(){
+        const response = await fetch('https://raw.githubusercontent.com/BlakeLeviSmith/Poker-3D-assets/main/Chips.glb')
+        const data = await response.arrayBuffer()
+        const loader = this.engine.createAssetLoader()
+        const asset = loader.createAssetFromBinary(new Uint8Array(data))
+        asset.loadResources()
+        await new Promise(resolve => setTimeout(resolve, 500))
+
+        this.chipEntities = asset.getEntities()
+        for (let i = 0; i < this.chipEntities.length; i++) {
+          this.scene.addEntity(this.chipEntities[i])
+        }
+
+
+        //UserChips
+        let entity = this.chipEntities[0]
+        let inst = this.tm.getInstance(entity)
+        let currentTransform = this.tm.getTransform(inst)
+        let newTransform = new Float32Array(currentTransform)
+        
+        newTransform[12] = -1.4
+        newTransform[13] = 0.2
+        newTransform[14] = 0.1
+        
+        this.tm.setTransform(inst, newTransform)
+
+
+        //Oppononet Two chips
+        if (this.playerCount >= 3){
+          entity = this.chipEntities[102]
+          inst = this.tm.getInstance(entity)
+          currentTransform = this.tm.getTransform(inst)
+          newTransform = new Float32Array(currentTransform)
+          
+          newTransform[12] = -1.7
+          newTransform[13] = 0.2
+          newTransform[14] = 0.38
+          
+          this.tm.setTransform(inst, newTransform)
+        }
+
+
+        //Opponenet One Chips
+        entity = this.chipEntities[204]
+        inst = this.tm.getInstance(entity)
+        currentTransform = this.tm.getTransform(inst)
+        newTransform = new Float32Array(currentTransform)
+        
+        newTransform[12] = -1.3
+        newTransform[13] = 0.2
+        newTransform[14] = 0.38
+        
+        this.tm.setTransform(inst, newTransform)
+          
+
+        //Opponenet Three Chips
+        if (this.playerCount >= 4){
+          entity = this.chipEntities[306]
+          inst = this.tm.getInstance(entity)
+          currentTransform = this.tm.getTransform(inst)
+          newTransform = new Float32Array(currentTransform)
+          
+          newTransform[12] = -2.15
+          newTransform[13] = 0.2
+          newTransform[14] = 0.18
+          
+          this.tm.setTransform(inst, newTransform)
+        }
+
+
+        //Opponenet Four Chips
+        if (this.playerCount >= 5){
+          entity = this.chipEntities[408]
+          inst = this.tm.getInstance(entity)
+          currentTransform = this.tm.getTransform(inst)
+          newTransform = new Float32Array(currentTransform)
+          
+          newTransform[12] = -2.15
+          newTransform[13] = 0.2
+          newTransform[14] = -0.15
+          
+          this.tm.setTransform(inst, newTransform)
+        }
+
+
+        //Opponenet Five Chips
+        if (this.playerCount >= 6){
+          entity = this.chipEntities[510]
+          inst = this.tm.getInstance(entity)
+          currentTransform = this.tm.getTransform(inst)
+          newTransform = new Float32Array(currentTransform)
+          
+          newTransform[12] = -2.15
+          newTransform[13] = 0.2
+          newTransform[14] = -0.265
+          
+          this.tm.setTransform(inst, newTransform)
+        }
+          
+
+        //Opponenet Six Chips
+        if (this.playerCount >= 7){
+          entity = this.chipEntities[612]
+          inst = this.tm.getInstance(entity)
+          currentTransform = this.tm.getTransform(inst)
+          newTransform = new Float32Array(currentTransform)
+          
+          newTransform[12] = -2.15
+          newTransform[13] = 0.2
+          newTransform[14] = -0.615
+          
+          this.tm.setTransform(inst, newTransform)
+        }
+          
+
+        //Opponenet Seven Chips
+        if (this.playerCount >= 8){
+          entity = this.chipEntities[714]
+          inst = this.tm.getInstance(entity)
+          currentTransform = this.tm.getTransform(inst)
+          newTransform = new Float32Array(currentTransform)
+          
+          newTransform[12] = -1.3
+          newTransform[13] = 0.2
+          newTransform[14] = -0.76
+          
+          this.tm.setTransform(inst, newTransform)
+        }
+
+
+        //Opponenet Eight Chips
+        if (this.playerCount == 9){
+          entity = this.chipEntities[816]
+          inst = this.tm.getInstance(entity)
+          currentTransform = this.tm.getTransform(inst)
+          newTransform = new Float32Array(currentTransform)
+          
+          newTransform[12] = -1.7
+          newTransform[13] = 0.2
+          newTransform[14] = -0.76
+          
+          this.tm.setTransform(inst, newTransform)
+        }
+      }
+    
 
       async loadCards() {
         const response = await fetch("https://raw.githubusercontent.com/BlakeLeviSmith/Poker-3D-assets/main/CardDeck.glb")
