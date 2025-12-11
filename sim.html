@@ -238,7 +238,7 @@
           this.scene.addEntity(this.playerEntities[i])
         }
 
-        // Position specific player entities (chips)
+        // User Placment
         for (let i = 7; i < 10; i++) {
           const entity = this.playerEntities[i]
           const inst = this.tm.getInstance(entity)
@@ -251,6 +251,21 @@
           
           this.tm.setTransform(inst, newTransform)
         }
+
+        //
+        for (let i = 7; i < 10; i++) {
+          const entity = this.playerEntities[i]
+          const inst = this.tm.getInstance(entity)
+          const currentTransform = this.tm.getTransform(inst)
+          const newTransform = new Float32Array(currentTransform)
+          
+          newTransform[12] = -0.8
+          newTransform[13] = 0.13
+          newTransform[14] = -0.23
+          
+          this.tm.setTransform(inst, newTransform)
+        }
+
       }
 
       multiplyMatrices(a, b) {
