@@ -248,6 +248,14 @@
       window.app = new App(canvas)
     })
 
+    let balance = 10000;
+    let pot = 500;
+
+    function updateUI() {
+      document.getElementById("balance-value").textContent = "$" + balance.toLocaleString();
+      document.getElementById("pot-value").textContent = "$" + pot.toLocaleString();
+    }
+
     class App {
       constructor(canvas) {
         this.canvas = canvas
@@ -888,7 +896,7 @@
               this.card2Up = false
             }
           }
-          
+
           if (e.key === "w") {
             if (!this.card1Up) {
               this.revealUserCard(this.userCard1, this.time1, 2)
@@ -1196,6 +1204,37 @@
         this.view.setViewport([0, 0, width, height])
         this.camera.setProjectionFov(75, width / height, 0.1, 100.0, Fov.VERTICAL)
       }
+
+      quickBet(amount) {
+        const input = document.getElementById("bet-input");
+        const current = parseInt(input.value || "0");
+        input.value = current + amount;
+      }
+
+      placeBet() {
+        const input = document.getElementById("bet-input");
+        let bet = parseInt(input.value);
+
+        if (isNaN(bet) || bet <= 0) {
+          alert("Enter a positive bet amount.");
+          return;
+        }
+        if (bet > balance) {
+          alert("You do not have enough balance.");
+          return;
+        }
+
+        // Update values
+        balance -= bet;
+        pot += bet;
+
+        // Clear input
+        input.value = "";
+
+        // Update display
+        updateUI();
+      }
+
     }
   </script>
 </body>
