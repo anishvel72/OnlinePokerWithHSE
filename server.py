@@ -1,7 +1,8 @@
-from flask import Flask, redirect, request, render_template, url_for
+from flask import Flask, redirect, request, render_template, url_for, make_response, session
 from authlib.integrations.flask_client import OAuth
-
+import datetime
 import config
+import uuid
 from serverClasses.pokerGame import *
 app = Flask(__name__)
 app.secret_key = 'temporary'
@@ -23,6 +24,17 @@ google = oauth.register(
 )
 
 
+def get_current_user():
+    session_token = request.cookies.get('session_token')
+    if not session_token:
+        return None
+    user = sessions.get(session_token)
+    if not user:
+        return None
+    if datetime.datetime.now() > user.get("expiration", datetime.datetime.min):
+        return None
+    return user
+
 #I want login to be the default route
 @app.route('/')
 def entryPage():
@@ -30,16 +42,18 @@ def entryPage():
 
 @app.route('/login')
 def loginPage():
-    #Need to check for session cookie
-    #If valid session cookie, redirect to dashboard
-    #Otherwise, stay
+    user = get_current_user()
+    if user:
+        return redirect('/dashboard')
     
     return render_template('./loginPage.html')
 
 
 @app.route('/dashboard')
 def homePage():
-    #If not valid session cookie, redirect to login
+    user = get_current_user()
+    if not user:
+        return redirect('/login')
     return "Dashboard Page Placeholder"
 
 
@@ -50,25 +64,37 @@ def start_google_login():
 @app.route('/authorize')
 def authorize():
     token = oauth.google.authorize_access_token()
-    print(token)
+    sessionCookie = str(uuid.uuid4())
+    
+    if token['userinfo']['email_verified'] == False:
+         return "Email not Verified"
+    
+    
+    sessions[sessionCookie] = token['userinfo']
+    response = make_response(redirect('/dashboard'))
+    expirationTime = datetime.datetime.now() + datetime.timedelta(seconds=3600)
+    sessions[sessionCookie]["expiration"] = expirationTime
+    response.set_cookie("session_token", sessionCookie, httponly=True)
+    #print(f'Token UUID: {sessionToken} \nSessionToken: {sessions[sessionToken]}')
+    print(sessions)
 
-
-    if token:
-        pass
-    return redirect('/dashboard')
+    return response
 
 @app.route('/poker')
 def pokerGame():
     #If not valid session token, redirect to login
-    
+    user = get_current_user()
+    if not user:
+        return redirect('/login')
     
     game_id = request.args.get('gameId')
 
-    #if gameid none, create new game
-    if not game_id:
+    if not game_id or (game_id not in games):
         game = PokerGame()
+        games[game.gameID] = game
+        return redirect(f'/poker?gameId={game.gameID}')
     else:
-        game = games.get()
+        game = games.get(game_id)
     
     return "Poker Game Placeholder"
 
