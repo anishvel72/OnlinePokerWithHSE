@@ -10,6 +10,7 @@ class PokerGame:
         self.__deck = Deck()
         self.__deck.shuffle()
         self.__playerQueue = []
+        self.__started = False
     
     def startGame(self):
         for player in self.__playerQueue:
@@ -17,7 +18,16 @@ class PokerGame:
         self.__playerQueue = []
         for player in self.__players:
             player.draw(self.__deck,2)
+        self.__started = True
 
+    def fold(self, player):
+        self.__players.remove(player)
+        self.__playerQueue.append(player)
+    
+    @property
+    def started(self):
+        return self.__started
+    
     def riverDraw(self):
         self.__river.append(self.__deck.draw())
 
@@ -27,6 +37,7 @@ class PokerGame:
         self.__river = []
         self.__deck = Deck()
         self.__deck.shuffle()
+        self.__started = False
     
     @property
     def players(self):

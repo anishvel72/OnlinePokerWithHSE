@@ -1,4 +1,4 @@
-from flask import Flask, redirect, request, render_template, url_for, make_response, session
+from flask import Flask, redirect, request, render_template, url_for, make_response, jsonify
 from authlib.integrations.flask_client import OAuth
 import datetime
 import config
@@ -93,10 +93,55 @@ def pokerGame():
         game = PokerGame()
         games[game.gameID] = game
         return redirect(f'/poker?gameId={game.gameID}')
-    else:
-        game = games.get(game_id)
     
+    game = games.get(game_id)
+    
+
+    player_name = user.get("name")
+
+    game.addPlayer(player_name)
+
     return "Poker Game Placeholder"
 
+@app.route('/poker', methods=['POST'])
+def pokerActions():
+    user = get_current_user()
+    if not user:
+        return jsonify({'error': 'Not Logged in'})
+    
+
+    
+    for player in game.players:
+        if player.name ==user:
+            current_player = player
+    
+
+    data = request.get_json()
+    game_id = request.args.get('gameId')
+
+    action = data.get('action')
+    value = data.get('value')
+
+    if not game_id or game_id not in games:
+        return jsonify({"error": "invalid game"})
+    
+    if not action or (action not in ['start', 'bet', 'fold', 'check']):
+        return jsonify({'error': 'invalid action'})
+    
+    # Handle different actions
+    if action == "start_game":
+        game.startGame()
+
+    elif action == "bet":
+        current_player.money -= value
+        game.changePot(value)
+
+    elif action == "fold":
+        game.fold(current_player)
+
+    elif action == "check":
+        current_player.money -= 0
+        game.changePot(0)
+    
 if __name__ == "__main__":
     app.run(debug=True)
