@@ -19,14 +19,15 @@
       top: 20px;
       right: 20px;
       background: rgba(20, 20, 30, 0.95);
-      border: 2px solid rgba(255, 215, 0, 0.6);
+      border: 2px solid rgba(100, 200, 255, 0.6);   /* same as HSE */
       border-radius: 12px;
       padding: 20px;
       min-width: 280px;
-      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
-      backdrop-filter: blur(10px);
+      box-shadow: 0 0 20px rgba(0, 212, 255, 0.25); /* neon glow */
+      backdrop-filter: blur(12px);
       transition: opacity 0.3s ease, transform 0.3s ease;
     }
+
 
     #betting-panel.hidden {
       opacity: 0;
@@ -37,13 +38,14 @@
     .panel-title {
       font-size: 20px;
       font-weight: bold;
-      color: #FFD700;
+      color: #00D4FF;     /* neon cyan */
       text-align: center;
       margin-bottom: 15px;
       text-transform: uppercase;
       letter-spacing: 2px;
-      text-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
+      text-shadow: 0 0 10px rgba(0, 212, 255, 0.5);
     }
+
 
     .stat-row {
       display: flex;
@@ -51,10 +53,11 @@
       align-items: center;
       margin: 12px 0;
       padding: 8px 12px;
-      background: rgba(255, 255, 255, 0.05);
+      background: rgba(255, 255, 255, 0.04);
       border-radius: 6px;
-      border-left: 3px solid #FFD700;
+      border-left: 3px solid #00D4FF;
     }
+
 
     .stat-label {
       color: #AAA;
@@ -64,11 +67,12 @@
     }
 
     .stat-value {
-      color: #FFD700;
+      color: #00D4FF;
       font-size: 18px;
       font-weight: bold;
-      text-shadow: 0 0 10px rgba(255, 215, 0, 0.3);
+      text-shadow: 0 0 10px rgba(0, 212, 255, 0.3);
     }
+
 
     .bet-input-container {
       margin-top: 20px;
@@ -89,9 +93,9 @@
       width: 100%;
       padding: 12px;
       background: rgba(0, 0, 0, 0.4);
-      border: 2px solid rgba(255, 215, 0, 0.4);
+      border: 2px solid rgba(100, 200, 255, 0.5);
       border-radius: 6px;
-      color: #FFD700;
+      color: #00D4FF;
       font-size: 16px;
       font-weight: bold;
       text-align: center;
@@ -100,13 +104,14 @@
     }
 
     #bet-input:focus {
-      border-color: #FFD700;
-      box-shadow: 0 0 15px rgba(255, 215, 0, 0.3);
+      border-color: #00D4FF;
+      box-shadow: 0 0 15px rgba(0, 212, 255, 0.3);
     }
 
     #bet-input::placeholder {
-      color: rgba(255, 215, 0, 0.4);
+      color: rgba(100, 200, 255, 0.4);
     }
+
 
     .button-row {
       display: flex;
@@ -117,7 +122,7 @@
     .bet-button {
       flex: 1;
       padding: 10px;
-      background: linear-gradient(135deg, #FFD700, #FFA500);
+      background: linear-gradient(135deg, #00D4FF, #0099CC);
       border: none;
       border-radius: 6px;
       color: #000;
@@ -131,8 +136,9 @@
 
     .bet-button:hover {
       transform: translateY(-2px);
-      box-shadow: 0 4px 15px rgba(255, 215, 0, 0.4);
+      box-shadow: 0 4px 15px rgba(0, 212, 255, 0.4);
     }
+
 
     .bet-button:active {
       transform: translateY(0);
@@ -182,6 +188,42 @@
       border-radius: 6px;
       letter-spacing: 1px;
     }
+
+    /* WIN / LOSS Banner */
+    #result-banner {
+      position: absolute;
+      top: 40%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      padding: 25px 60px;
+      background: rgba(20, 20, 30, 0.95);
+      border: 2px solid rgba(100, 200, 255, 0.6);
+      border-radius: 14px;
+      backdrop-filter: blur(12px);
+      box-shadow: 0 0 25px rgba(0, 212, 255, 0.35);
+      display: none;
+      animation: popup 0.5s ease-out;
+    }
+
+    #result-text {
+      font-size: 48px;
+      font-weight: bold;
+      text-align: center;
+      color: #00D4FF;
+      text-shadow: 0 0 25px rgba(0, 212, 255, 0.8);
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      font-family: 'Courier New', monospace;
+    }
+
+    #result-banner.show {
+      display: block;
+    }
+
+    @keyframes popup {
+      from { transform: translate(-50%, -60%) scale(0.8); opacity: 0; }
+      to   { transform: translate(-50%, -50%) scale(1); opacity: 1; }
+    }
   </style>
 </head>
 <body>
@@ -226,6 +268,11 @@
 
   <!-- Toggle Hint -->
   <div class="toggle-hint">Press 'B' to toggle betting panel</div>
+
+  <!-- WIN/LOSS BANNER -->
+<div id="result-banner" class="hidden">
+  <div id="result-text">Winner: User</div>
+</div>
 
   <script src="https://unpkg.com/filament@1.9.0/filament.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/gl-matrix/3.4.3/gl-matrix-min.js"></script>
@@ -1478,36 +1525,44 @@
     }
 
       runWinnerCheck() {
-      const boardStart = this.playerCount * 2;
+          const boardStart = this.playerCount * 2;
 
-      const board = [
-          this.deck[boardStart],
-          this.deck[boardStart + 1],
-          this.deck[boardStart + 2],
-          this.deck[boardStart + 3],
-          this.deck[boardStart + 4]
-      ];
+          const board = [
+              this.deck[boardStart],
+              this.deck[boardStart + 1],
+              this.deck[boardStart + 2],
+              this.deck[boardStart + 3],
+              this.deck[boardStart + 4]
+          ];
 
-      const userHand = [this.deck[0], this.deck[1]];
+          const userHand = [this.deck[0], this.deck[1]];
 
-      let userScore = evaluateHand(userHand, board);
-      let bestScore = userScore;
-      let winner = "User";
+          let userScore = evaluateHand(userHand, board);
+          let bestScore = userScore;
+          let winner = "User";
 
-      // Evaluate all opponents
-      for (let i = 1; i < this.playerCount; i++) {
-          const opp1 = this.deck[i * 2];
-          const opp2 = this.deck[i * 2 + 1];
-          const oppScore = evaluateHand([opp1, opp2], board);
+          // Evaluate all opponents
+          for (let i = 1; i < this.playerCount; i++) {
+              const opp1 = this.deck[i * 2];
+              const opp2 = this.deck[i * 2 + 1];
+              const oppScore = evaluateHand([opp1, opp2], board);
 
-          if (oppScore > bestScore) {
-              bestScore = oppScore;
-              winner = "Opponent " + i;
+              if (oppScore > bestScore) {
+                  bestScore = oppScore;
+                  winner = "Opponent " + i;
+              }
           }
-      }
 
-      console.log("Winner:", winner, "with score:", bestScore);
-    }
+          console.log("Winner:", winner, "with score:", bestScore);
+
+          const banner = document.getElementById("result-banner");
+          const text = document.getElementById("result-text");
+
+          text.textContent = "Winner: " + winner;
+
+          banner.classList.remove("hidden"); // <-- IMPORTANT
+          banner.classList.add("show");
+      }
 
 
     }
